@@ -197,10 +197,12 @@ const CHECK={
   ["Devices throughout",["Outlets throughout","Outlet covers throughout","Switches throughout","Switch plates throughout","Hardwired smoke detectors","CO detectors","Doorbell","Exterior lights"]]],
  "Mechanicals":[["Heat",["Furnace","Boiler","Boiler-to-furnace conversion","Radiator removal","Flue / chimney liner","Gas line to furnace"]],["Cooling",["AC / condenser","Evaporator coil","Line set","Condensate drain"]],["Air",["Ductwork","Duct cleaning","Returns","Registers","Thermostat","Filter","Tune-up"]],["Water heater",["Water heater","Water heater venting","Expansion tank"]]],
  "Garage":[["Garage",["Garage door","Garage door opener","Service door","Garage roof","Garage siding","Garage paint","Slab repair","Lights","Outlets","Outlet covers","Clean-out","Demo garage"]]],
+ "Clean out":[["Clean out",["Whole-house clean out","Trash-out","Dumpster","Basement clean out","Garage clean out","Attic clean out","Yard debris","Appliance haul-away","Left-behind furniture"]]],
+ "Demo":[["Demo",["Drywall demo","Plaster demo","Drop ceiling removal","Flooring tear-out","Carpet removal","Cabinet & counter removal","Bathroom demo","Tub / shower removal","Wall removal","Haul-off of demo debris"]]],
  "Whole house":[["Whole house",["Demo / trash-out","Dumpster","Permits","Point-of-sale violations","Lead paint","Asbestos","Mold","Pest / termite","Smoke & CO throughout","Rekey all locks","Paint throughout","Flooring throughout","Doors & hardware throughout","Final clean"]]]};
 CHECK["Attic"]=CHECK["Roof & attic"];
-const START=["Exterior","Roof & attic","Kitchen","Living room","Bedroom","Bedroom","Bathroom","Basement","Plumbing","Electrical","Mechanicals","Whole house"];
-const ADD=["Bedroom","Bathroom","Half bath","Dining room","Family room","Hallway / stairs","Laundry","Garage","Roof & attic","Structure / foundation","Plumbing","Electrical","Mechanicals","Whole house","Other"];
+const START=["Clean out","Demo","Plumbing","Electrical","Mechanicals","Exterior","Roof & attic","Kitchen","Living room","Bedroom","Bedroom","Bathroom","Basement","Whole house"];
+const ADD=["Clean out","Demo","Bedroom","Bathroom","Half bath","Dining room","Family room","Hallway / stairs","Laundry","Garage","Roof & attic","Structure / foundation","Plumbing","Electrical","Mechanicals","Whole house","Other"];
 const $=s=>document.querySelector(s);
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const num=v=>{const n=parseFloat(String(v??"").replace(/[$,\s]/g,""));return isFinite(n)?n:0};
@@ -214,9 +216,16 @@ const openCheck=new Set();
 function nameFor(b,type){if(type==="Other")return"New room";const same=b.rooms.filter(r=>r.type===type).length;
  if(["Bedroom","Bathroom"].includes(type))return type+" "+(same+1);return same?type+" "+(same+1):type}
 function room(b,type){return{id:rid(),type,name:nameFor(b,type),note:"",items:[],labor:""}}
+/* project phases come first, in this order; rooms follow in the order you entered them */
+const PHASES=["Clean out","Demo","Plumbing","Electrical"];
+const phaseOf=t=>{const k=String(t||"").toLowerCase().replace(/[^a-z]/g,"");return PHASES.findIndex(p=>{const q=p.toLowerCase().replace(/[^a-z]/g,"");return k===q||k===q+"s"||(q==="demo"&&k==="demolition")||(q==="cleanout"&&(k==="trashout"||k==="cleanup"))})};
+const rankOf=r=>{let i=phaseOf(r.type);if(i<0)i=phaseOf(r.name);return i<0?100:i};
+function sortRooms(b){b.rooms=(b.rooms||[]).map((r,i)=>({r,i})).sort((x,y)=>rankOf(x.r)-rankOf(y.r)||x.i-y.i).map(x=>x.r)}
+function phaseRoom(b,area){const i=phaseOf(area);if(i<0)return null;const name=PHASES[i];let r=b.rooms.find(x=>phaseOf(x.type)===i||phaseOf(x.name)===i);if(!r){r=room(b,name);b.rooms.push(r)}return r}
 function fix(b){if(!b.rooms)b.rooms=[];
  for(const r of b.rooms){if(r.labor==null){const s=(r.items||[]).reduce((t,i)=>t+(typeof i==="object"?num(i.labor)+num(i.price):0),0);r.labor=s?String(s):""}
-  r.items=(r.items||[]).map(i=>typeof i==="string"?i:i.item).filter(Boolean);r.note=r.note||""}return b}
+  r.items=(r.items||[]).map(i=>typeof i==="string"?i:i.item).filter(Boolean);r.note=r.note||""}const ag=b.rooms.find(x=>x.name==="Added by GC");if(ag&&(ag.added||[]).length){ag.added=ag.added.filter(a=>{const m=String(a.item).match(/^([^:]+):\s*(.+)$/);const pr=m&&phaseRoom(b,m[1]);if(!pr)return true;pr.added=pr.added||[];if(!pr.added.some(x=>x.item===m[2]))pr.added.push({item:m[2],labor:a.labor});return false});if(!ag.added.length&&!ag.note&&!ag.items.length&&!num(ag.labor))b.rooms=b.rooms.filter(x=>x!==ag)}
+ sortRooms(b);return b}
 const sent=b=>{const f=(b.rooms||[]).filter(r=>r.note.trim()||r.items.length);return f.length?f:(b.rooms||[])};
 /* materials */
 const MAT={"outlet covers":["Outlet covers","ea"],"outlet covers throughout":["Outlet covers","ea"],"switch plates":["Switch plates","ea"],"switch plates throughout":["Switch plates","ea"],"outlets":["Outlets (15A tamper-resistant)","ea"],"outlets throughout":["Outlets (15A tamper-resistant)","ea"],"replace outlets":["Outlets (15A tamper-resistant)","ea"],"switches":["Light switches","ea"],"switches throughout":["Light switches","ea"],"gfci outlet":["GFCI outlets","ea"],"gfci outlets":["GFCI outlets","ea"],"light fixture":["Light fixtures","ea"],"light fixtures":["Light fixtures","ea"],"ceiling fan":["Ceiling fan w/ light","ea"],"can lights":["LED can lights","ea"],"smoke detector":["Smoke detectors","ea"],"co detector":["CO detectors","ea"],"smoke & co throughout":["Smoke/CO combo detectors","ea"],
@@ -364,7 +373,7 @@ function sow(b,li){if(!window.jspdf){toast("PDF tools didn't load — reload the
 /* log a GC reply: fills room prices and keeps a dated record */
 function applyReply(b,txt,via){let n=0;
   for(const ln of txt.split(/\n/)){if(/^\s*\+\s*Area:\s*what needs done/i.test(ln))continue;const tl=ln.match(/^\s*timeline[^\d]*(\d{1,3})/i);if(tl){b.gcDays=tl[1];continue}const plus=ln.match(/^\s*\+\s*(?:(.+?):)?\s*(.+?)(?:\s*[–—-]\s*\$?\s*([\d,]+(?:\.\d+)?)\s*(k)?)?\s*$/i);
-   if(plus){let r=plus[1]&&b.rooms.find(x=>x.name.toLowerCase()===plus[1].trim().toLowerCase());if(!r){r=b.rooms.find(x=>x.name==="Added by GC");if(!r){r=room(b,"Other");r.name="Added by GC";b.rooms.push(r)}}
+   if(plus){let r=plus[1]&&(b.rooms.find(x=>x.name.toLowerCase()===plus[1].trim().toLowerCase())||phaseRoom(b,plus[1]));if(!r){r=b.rooms.find(x=>x.name==="Added by GC");if(!r){r=room(b,"Other");r.name="Added by GC";b.rooms.push(r)}}
     r.added=r.added||[];const item=plus[1]&&r.name==="Added by GC"?plus[1].trim()+": "+plus[2].trim():plus[2].trim();if(!r.added.some(x=>x.item===item))r.added.push({item,labor:plus[3]?String(num(plus[3])*(plus[4]?1000:1)):""});n++;continue}
    const m=ln.match(/^\s*(\d{1,2})[.)]?\s+(.+?)\s*[–—:-]\s*\$?\s*([\d,]+(?:\.\d+)?)\s*(k)?\s*$/i)||ln.match(/^\s*(\d{1,2})\s*[.):–—-]\s*\$?\s*([\d,]+(?:\.\d+)?)\s*(k)?\s*$/i);
    if(m){const has=m.length===5,i=+m[1]-1,v=num(has?m[3]:m[2])*((has?m[4]:m[3])?1000:1);const r=(has&&b.rooms.find(x=>x.name.toLowerCase()===m[2].trim().toLowerCase()))||sent(b)[i];if(r){r.labor=String(v);n++}continue}
@@ -427,7 +436,7 @@ async function readBidPdf(bytes){const P=window.PDFLib;const doc=await P.PDFDocu
  out.add=out.add.filter(a=>a&&(a.addDesc||a.addLabor));return out}
 function applyBidPdf(b,data,via){let n=0;
  for(const [id,v] of Object.entries(data.labor)){const r=b.rooms.find(x=>x.id===id);if(r&&num(v)){r.labor=String(num(v));n++}}
- for(const a of data.add){let r=a.addArea&&b.rooms.find(x=>x.name.toLowerCase()===a.addArea.trim().toLowerCase());if(!r){r=b.rooms.find(x=>x.name==="Added by GC");if(!r){r=room(b,"Other");r.name="Added by GC";b.rooms.push(r)}}
+ for(const a of data.add){let r=a.addArea&&(b.rooms.find(x=>x.name.toLowerCase()===a.addArea.trim().toLowerCase())||phaseRoom(b,a.addArea));if(!r){r=b.rooms.find(x=>x.name==="Added by GC");if(!r){r=room(b,"Other");r.name="Added by GC";b.rooms.push(r)}}
   r.added=r.added||[];const item=(r.name==="Added by GC"&&a.addArea?a.addArea.trim()+": ":"")+(a.addDesc||"Additional work").trim();const ex=r.added.find(x=>x.item===item);if(ex)ex.labor=num(a.addLabor)?String(num(a.addLabor)):"";else r.added.push({item,labor:num(a.addLabor)?String(num(a.addLabor)):""});n++}
  const e=data.extra;if(e.notes)b.gcNotes=e.notes;if(e.start)b.gcStart=e.start;if(e.completion)b.gcEnd=e.completion;if(e.license)b.gcLicense=e.license;if(e.insurance)b.gcInsurance=e.insurance;
  if(n){b.status="in";b.bidAt=today();const raw=Object.entries(data.labor).map(([id,v])=>`${(b.rooms.find(x=>x.id===id)||{}).name||id}: ${v}`).concat(data.add.map(a=>`+ ${a.addArea||""} ${a.addDesc||""}: ${a.addLabor||""}`),Object.entries(e).map(([k,v])=>`${k}: ${v}`)).join("\n");
@@ -520,7 +529,7 @@ ed.addEventListener("click",async e=>{const b=cur();if(!b)return;const t=e.targe
  if(d.chip!==undefined){const r=b.rooms[+d.r],i=r.items.indexOf(d.chip);i>=0?r.items.splice(i,1):r.items.push(d.chip);save(b);render();return}
  if(d.adel){const [ri,k]=d.adel.split(":");b.rooms[+ri].added.splice(+k,1);save(b);render();return}
  if(d.check){openCheck.has(d.check)?openCheck.delete(d.check):openCheck.add(d.check);render();return}
- if(d.add){b.rooms.push(room(b,d.add));save(b);render();return}
+ if(d.add){b.rooms.push(room(b,d.add));sortRooms(b);save(b);render();return}
  if(d.rdel!==undefined){if(d.sure){b.rooms.splice(+d.rdel,1);save(b);render()}else{d.sure=1;t.textContent="Remove?"}return}
  if(t.id==="del"){if(d.sure){bids=bids.filter(x=>x.id!==b.id);sel=null;db&&db.doc("bids/"+b.id).delete().catch(()=>{});renderList();render()}else{d.sure=1;t.textContent="Tap again to delete"}return}
  if(t.id==="pdf"){const bytes=await gcPdf(b);if(!bytes)return;if(!dl){toast("Downloads aren't available in this view");return}try{await dl.save({filename:pdfName(b),data:new Blob([bytes],{type:"application/pdf"})});toast("PDF saved")}catch(x){if(x&&x.code!=="declined")toast("Couldn't save the PDF here")}return}
