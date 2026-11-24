@@ -68,6 +68,7 @@ label{display:block;font-size:13px;color:var(--mute);font-weight:700;margin-bott
 #bdLogin{position:fixed;inset:0;background:rgba(3,40,56,.92);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}.bdl{background:var(--card);color:var(--ink);border-radius:14px;padding:22px;width:min(420px,100%)}.bdl h2{margin:0 0 4px}.bderr{color:var(--coral);font-weight:600;min-height:20px}
 .subb{background:#FACD88;color:#3b2a00;font-size:12px;font-weight:700;padding:3px 8px;border-radius:99px;white-space:nowrap;flex:none}
 .inadd{margin-top:8px}.inadd button{width:100%;min-height:46px;border-style:dashed;border-color:var(--sky);color:light-dark(var(--petrol),var(--sky));font-weight:700}
+.savest{font-size:13px;font-weight:600;color:var(--mute)}.savest.ok{color:var(--ok)}.savest.warn{color:var(--coral)}
 .grp{font-size:12px;font-weight:700;color:var(--mute);margin-top:10px}
 .chip.on{background:var(--petrol);border-color:var(--petrol);color:#fff}
 .linkish{background:none;border:0;color:var(--sky);padding:0;min-height:32px;font-size:14px}
@@ -117,7 +118,7 @@ const BID_DESK_API="https://script.google.com/macros/s/AKfycbxvNgTlW0NzR8Z_KVaP7
  const cfg={api:BID_DESK_API||ls(LS.api),pass:ls(LS.pass)};
  window.BD={get api(){return cfg.api},signOut(){ls(LS.pass,null);location.reload()}};
  async function call(action,data){if(!cfg.api)throw{code:"auth"};
-  const r=await fetch(cfg.api,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(Object.assign({action,key:cfg.pass},data||{}))});
+  const bodyStr=JSON.stringify(Object.assign({action,key:cfg.pass},data||{}));const r=await fetch(cfg.api,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:bodyStr,keepalive:bodyStr.length<60000});
   const j=await r.json();if(j&&j.error==="auth"){showLogin("Wrong password.");throw{code:"auth"}}if(!j||!j.ok)throw{code:"tool_error",message:(j&&j.error)||"Server error"};return j}
  window.BDcall=call;
  let ready,readyRes;ready=new Promise(r=>readyRes=r);
@@ -263,8 +264,19 @@ const total=b=>(b.rooms||[]).reduce((s,r)=>s+roomSum(r),0);
 
 /* save: one write at a time per doc */
 const q={};
-function save(b){if(!db||readOnly)return;b.updated=new Date().toISOString();const id=b.id;q[id]=q[id]||{chain:Promise.resolve()};clearTimeout(q[id].t);
- q[id].t=setTimeout(()=>{const body=JSON.parse(JSON.stringify(b));q[id].chain=q[id].chain.then(()=>db.doc("bids/"+id).set(body)).catch(e=>{if(e&&e.code==="invalid_argument"){readOnly=true;toast("This view can't save")}else toast("Save failed — will retry on next edit")})},600)}
+/* autosave: every change is kept as a draft on this device instantly, then saved to Drive; unsaved drafts come back if the page closes */
+const DK=id=>"bd_draft_"+id;const lsSet=(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch{}};const lsGet=k=>{try{return localStorage.getItem(k)}catch{return null}};
+function saveState(t,cls){const el=document.getElementById("saveState");if(el){el.textContent=t;el.className="savest "+(cls||"")}}
+function pushSave(id){const p=q[id];if(!p||!p.body)return;const body=p.body;p.body=null;saveState("Saving…");
+ p.chain=p.chain.then(()=>db.doc("bids/"+id).set(body)).then(()=>{if(!p.body){lsSet(DK(id),null);saveState("All changes saved ✓","ok")}}).catch(e=>{if(e&&e.code==="auth")return;if(!p.body)p.body=body;saveState("Not saved yet — draft kept on this device, retrying…","warn");clearTimeout(p.retry);p.retry=setTimeout(()=>pushSave(id),10000)})}
+function save(b){if(!db||readOnly)return;b.updated=new Date().toISOString();const id=b.id;q[id]=q[id]||{chain:Promise.resolve()};const p=q[id];
+ p.body=JSON.parse(JSON.stringify(b));lsSet(DK(id),JSON.stringify(p.body));saveState("Draft saved on this device…");clearTimeout(p.t);p.t=setTimeout(()=>pushSave(id),600)}
+function flushSaves(){for(const id in q){const p=q[id];if(p&&p.body){clearTimeout(p.t);pushSave(id)}}}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")flushSaves()});addEventListener("pagehide",flushSaves);
+addEventListener("beforeunload",e=>{if(Object.values(q).some(p=>p&&p.body)){flushSaves();e.preventDefault();e.returnValue=""}});
+function restoreDrafts(list){let n=0;try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(!k||!k.startsWith("bd_draft_"))continue;let d;try{d=JSON.parse(localStorage.getItem(k))}catch{continue}if(!d||!d.id)continue;
+  const cur=list.find(x=>x.id===d.id);if(!cur||String(d.updated||"")>String(cur.updated||"")){if(cur)list[list.indexOf(cur)]=d;else list.push(d);q[d.id]=q[d.id]||{chain:Promise.resolve()};q[d.id].body=d;setTimeout(()=>pushSave(d.id),0);n++}else lsSet(k,null)}}catch{}
+ if(n)setTimeout(()=>toast(`Restored ${n} unsaved draft${n===1?"":"s"} from this device`),300);return list}
 function saveSettings(){if(!db||readOnly)return;clearTimeout(saveSettings.t);saveSettings.t=setTimeout(()=>db.doc("settings/main").set({...settings}).catch(()=>{}),600)}
 
 function renderList(){const rows=[...bids].sort((a,b)=>(b.updated||"").localeCompare(a.updated||""));
@@ -279,7 +291,7 @@ function respHTML(b){const rs=b.responses||[];if(!rs.length)return`<p class="emp
   ${latest?"":`<button data-use-resp="${k}" style="margin-top:8px;min-height:36px">Use this bid instead</button>`}</details>`}).reverse().join("")}
 function render(){const b=bids.find(x=>x.id===sel),ed=$("#editor");if(!b){ed.innerHTML='<p class="empty">Pick a property or add a new one.</p>';return}
  fix(b);const g=esc(settings.gcName||"GC");
- ed.innerHTML=`<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><h2>${esc(b.address||"New property")}</h2><button class="no" id="del" style="min-height:36px">Delete</button></div>
+ ed.innerHTML=`<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div><h2>${esc(b.address||"New property")}</h2><span id="saveState" class="savest ok">${q[b.id]&&q[b.id].body?"Saving…":"All changes saved ✓"}</span></div><button class="no" id="del" style="min-height:36px">Delete</button></div>
  <div class="top"><div><label for="f-address">Address</label><input id="f-address" data-k="address" placeholder="1234 E 99th St, Cleveland, OH 44104"></div>
   <div><label for="f-dueDate">Need bid by</label><input id="f-dueDate" data-k="dueDate" type="date"></div>
   <div style="grid-column:1/-1"><label for="f-access">Access / notes for ${g}</label><input id="f-access" data-k="access" placeholder="Lockbox 1234, vacant"></div></div>
@@ -602,6 +614,7 @@ let mcp=null,dl=null;
  db.doc("settings/main").onSnapshot(s=>{if(s.exists)settings={...settings,...s.data()};if(settings.gcEmail&&!(settings.gcEmails||[]).length)settings.gcEmails=[settings.gcEmail];document.querySelectorAll("[data-set]").forEach(el=>{if(document.activeElement!==el)el.value=settings[el.dataset.set]||""});const a=document.activeElement;if(!(a&&ed.contains(a)))render()},()=>{});
  db.collection("bids").onSnapshot(s=>{if(!s.metadata.fromCache)clearTimeout(timer);const local=new Map(bids.map(b=>[b.id,b]));
   bids=s.docs.map(d=>{const b=JSON.parse(JSON.stringify(d.data()));if(q[b.id]&&local.has(b.id)){const l=local.get(b.id),have=new Set((l.inbox||[]).map(x=>x.sid));for(const it of b.inbox||[])if(!have.has(it.sid))(l.inbox=l.inbox||[]).push(it);return l}const was=(b.rooms||[]).map(r=>r.id).join();fix(b);if(was&&was!==b.rooms.map(r=>r.id).join())setTimeout(()=>save(b),0);return b});
+  if(!window.__draftsChecked){window.__draftsChecked=1;bids=restoreDrafts(bids).map(b=>fix(b))}
   let newBids=0;for(const b of bids)newBids+=processInbox(b);
   for(const b of local.values())if(!bids.some(x=>x.id===b.id)&&q[b.id])bids.push(b);
   renderList();const a=document.activeElement;if(newBids||!(a&&ed.contains(a)&&/INPUT|TEXTAREA/.test(a.tagName)))render()},
