@@ -66,6 +66,7 @@ label{display:block;font-size:13px;color:var(--mute);font-weight:700;margin-bott
 .lab{color:#bfe3f2;font-size:13px;font-weight:700;flex:none}
 .rin{width:110px;min-height:36px;text-align:right;font-weight:700;padding:4px 8px}
 #bdLogin{position:fixed;inset:0;background:rgba(3,40,56,.92);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}.bdl{background:var(--card);color:var(--ink);border-radius:14px;padding:22px;width:min(420px,100%)}.bdl h2{margin:0 0 4px}.bderr{color:var(--coral);font-weight:600;min-height:20px}
+.subb{background:#FACD88;color:#3b2a00;font-size:12px;font-weight:700;padding:3px 8px;border-radius:99px;white-space:nowrap;flex:none}
 .grp{font-size:12px;font-weight:700;color:var(--mute);margin-top:10px}
 .chip.on{background:var(--petrol);border-color:var(--petrol);color:#fff}
 .linkish{background:none;border:0;color:var(--sky);padding:0;min-height:32px;font-size:14px}
@@ -201,8 +202,8 @@ const CHECK={
  "Demo":[["Demo",["Drywall demo","Plaster demo","Drop ceiling removal","Flooring tear-out","Carpet removal","Cabinet & counter removal","Bathroom demo","Tub / shower removal","Wall removal","Haul-off of demo debris"]]],
  "Whole house":[["Whole house",["Demo / trash-out","Dumpster","Permits","Point-of-sale violations","Lead paint","Asbestos","Mold","Pest / termite","Smoke & CO throughout","Rekey all locks","Paint throughout","Flooring throughout","Doors & hardware throughout","Final clean"]]]};
 CHECK["Attic"]=CHECK["Roof & attic"];
-const START=["Clean out","Demo","Plumbing","Electrical","Mechanicals","Exterior","Roof & attic","Kitchen","Living room","Bedroom","Bedroom","Bathroom","Basement","Whole house"];
-const ADD=["Clean out","Demo","Bedroom","Bathroom","Half bath","Dining room","Family room","Hallway / stairs","Laundry","Garage","Roof & attic","Structure / foundation","Plumbing","Electrical","Mechanicals","Whole house","Other"];
+const START=["Exterior","Clean out","Demo","Plumbing","Electrical","Kitchen","Living room","Bedroom","Bathroom"];
+const ADD=["Bedroom","Bathroom","Half bath","Basement","Dining room","Family room","Hallway / stairs","Laundry","Garage","Roof & attic","Structure / foundation","Mechanicals","Whole house","Exterior","Clean out","Demo","Plumbing","Electrical","Kitchen","Living room","Other"];
 const $=s=>document.querySelector(s);
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const num=v=>{const n=parseFloat(String(v??"").replace(/[$,\s]/g,""));return isFinite(n)?n:0};
@@ -213,14 +214,18 @@ const toast=m=>{const t=$("#toast");t.textContent=m;t.classList.add("show");clea
 let db=null,bids=[],sel=null,settings={gcName:"Josh"},readOnly=false;
 const openCheck=new Set();
 
-function nameFor(b,type){if(type==="Other")return"New room";const same=b.rooms.filter(r=>r.type===type).length;
- if(["Bedroom","Bathroom"].includes(type))return type+" "+(same+1);return same?type+" "+(same+1):type}
+function nameFor(b,type){if(type==="Other")return"New room";const same=b.rooms.filter(r=>r.type===type);
+ const next=same.reduce((m,r)=>Math.max(m,parseInt((r.name.match(/(\d+)\s*$/)||[])[1])||1),0)+1;
+ if(["Bedroom","Bathroom"].includes(type))return type+" "+(same.length?next:1);return same.length?type+" "+next:type}
 function room(b,type){return{id:rid(),type,name:nameFor(b,type),note:"",items:[],labor:""}}
 /* project phases come first, in this order; rooms follow in the order you entered them */
 const PHASES=["Clean out","Demo","Plumbing","Electrical"];
 const phaseOf=t=>{const k=String(t||"").toLowerCase().replace(/[^a-z]/g,"");return PHASES.findIndex(p=>{const q=p.toLowerCase().replace(/[^a-z]/g,"");return k===q||k===q+"s"||(q==="demo"&&k==="demolition")||(q==="cleanout"&&(k==="trashout"||k==="cleanup"))})};
-const rankOf=r=>{let i=phaseOf(r.type);if(i<0)i=phaseOf(r.name);return i<0?100:i};
-function sortRooms(b){b.rooms=(b.rooms||[]).map((r,i)=>({r,i})).sort((x,y)=>rankOf(x.r)-rankOf(y.r)||x.i-y.i).map(x=>x.r)}
+const ORDER=["Exterior","Clean out","Demo","Plumbing","Electrical","Kitchen","Living room","Bedroom","Bathroom","Half bath"];
+const rankOf=r=>{const t=String(r.type||"");let i=ORDER.indexOf(t);if(i<0){const p=phaseOf(r.type)>=0?phaseOf(r.type):phaseOf(r.name);if(p>=0)i=ORDER.indexOf(PHASES[p])}
+ if(i<0){const nm=String(r.name||"").toLowerCase();i=ORDER.findIndex(o=>nm===o.toLowerCase()||nm.startsWith(o.toLowerCase()+" "))}return i<0?100:i};
+const numOf=r=>parseInt((String(r.name||"").match(/(\d+)\s*$/)||[])[1])||0;
+function sortRooms(b){b.rooms=(b.rooms||[]).map((r,i)=>({r,i})).sort((x,y)=>rankOf(x.r)-rankOf(y.r)||(rankOf(x.r)<100?numOf(x.r)-numOf(y.r):0)||x.i-y.i).map(x=>x.r)}
 function phaseRoom(b,area){const i=phaseOf(area);if(i<0)return null;const name=PHASES[i];let r=b.rooms.find(x=>phaseOf(x.type)===i||phaseOf(x.name)===i);if(!r){r=room(b,name);b.rooms.push(r)}return r}
 function fix(b){if(!b.rooms)b.rooms=[];
  for(const r of b.rooms){if(r.labor==null){const s=(r.items||[]).reduce((t,i)=>t+(typeof i==="object"?num(i.labor)+num(i.price):0),0);r.labor=s?String(s):""}
@@ -278,13 +283,13 @@ function render(){const b=bids.find(x=>x.id===sel),ed=$("#editor");if(!b){ed.inn
   <div><label for="f-dueDate">Need bid by</label><input id="f-dueDate" data-k="dueDate" type="date"></div>
   <div style="grid-column:1/-1"><label for="f-access">Access / notes for ${g}</label><input id="f-access" data-k="access" placeholder="Lockbox 1234, vacant"></div></div>
  ${b.rooms.map((r,i)=>{const list=CHECK[r.type]||(r.type==="Other"?INTERIOR:[]),on=new Set(r.items);
-  return `<div class="room"><div class="rh"><input data-r="${i}" data-rk="name" value="${esc(r.name)}" aria-label="Room name"><span class="lab">Labor</span><input class="price" data-r="${i}" data-rk="labor" value="${esc(r.labor)}" inputmode="decimal" placeholder="Labor $" title="Labor (GC bid)" aria-label="Labor for ${esc(r.name)}"><button class="x" data-rdel="${i}" aria-label="Remove ${esc(r.name)}">✕</button></div>
+  return `<div class="room"><div class="rh"><input data-r="${i}" data-rk="name" value="${esc(r.name)}" aria-label="Room name">${r.sub?`<span class="subb" title="GC is subbing this out">Subbed out${r.sub!=="yes"?": "+esc(r.sub):""}</span>`:""}<span class="lab">Labor</span><input class="price" data-r="${i}" data-rk="labor" value="${esc(r.labor)}" inputmode="decimal" placeholder="Labor $" title="Labor (GC bid)" aria-label="Labor for ${esc(r.name)}"><button class="x" data-rdel="${i}" aria-label="Remove ${esc(r.name)}">✕</button></div>
   <div class="rb"><textarea data-r="${i}" data-rk="note" placeholder="What needs done in this room — leave blank to skip it" aria-label="Work for ${esc(r.name)}">${esc(r.note)}</textarea>
   ${r.items.length?`<div class="chips">${r.items.map(t=>`<button class="chip on" data-r="${i}" data-chip="${esc(t)}">✓ ${esc(t)}</button>`).join("")}</div>`:""}
   ${(r.added||[]).length?`<div class="gcadd"><b>${esc(settings.gcName||"GC")} added:</b>${r.added.map((a,k)=>`<div>${esc(a.item)} — ${a.labor?money(num(a.labor)):"no price"} <button class="linkish no" data-adel="${i}:${k}">remove</button></div>`).join("")}</div>`:""}
   ${list.length?`<button class="linkish" data-check="${esc(r.id)}">${openCheck.has(r.id)?"Hide checklist":`+ Full checklist (${list.reduce((n,g)=>n+g[1].length,0)} items)`}</button>`:""}
   ${openCheck.has(r.id)?list.map(([gn,its])=>{const left=its.filter(t=>!on.has(t));return left.length?`<div class="grp">${esc(gn)}</div><div class="chips" style="margin-top:4px">${left.map(t=>`<button class="chip" data-r="${i}" data-chip="${esc(t)}">${esc(t)}</button>`).join("")}</div>`:""}).join(""):""}${matHTML(r,i)}</div></div>`}).join("")}
- <div class="adds"><span class="note" style="align-self:center">Add:</span>${ADD.map(t=>`<button class="ghost" data-add="${esc(t)}">${esc(t)}</button>`).join("")}</div>
+ <div class="adds"><button class="pri" data-add="Bedroom">+ Add bedroom</button><button class="pri" data-add="Bathroom">+ Add bathroom</button><span class="note" style="align-self:center;margin-left:6px">Other sections:</span>${ADD.filter(t=>t!=="Bedroom"&&t!=="Bathroom").map(t=>`<button class="ghost" data-add="${esc(t)}">${esc(t)}</button>`).join("")}</div>
  <div class="totals"><div><span>Labor</span><b id="tot">${money(total(b))}</b></div><div><span>Materials</span><b id="mtot">${money(matsAll(b))}</b></div><div class="all"><span>All-in</span><b id="atot">${money(total(b)+matsAll(b))}</b></div></div>
  <div style="margin-top:8px"><button id="shopCsv">Download materials shopping list</button></div>
  <div class="step"><h3>Send to ${g}</h3>
@@ -430,11 +435,12 @@ async function gcPdf(b){const P=window.PDFLib;if(!P){toast("PDF tools didn't loa
  pages.forEach((p,i)=>{p.drawText(pdfSafe(`${b.address}  ·  Scope of Work  ·  ${b.id}`),{x:L,y:30,size:8,font:F,color:mute});const t=`Page ${i+1} of ${pages.length}`;p.drawText(t,{x:R-F.widthOfTextAtSize(t,8),y:30,size:8,font:F,color:mute})});
  return doc.save()}
 const b64of=bytes=>{let bin="";for(let i=0;i<bytes.length;i+=8192)bin+=String.fromCharCode(...bytes.subarray(i,i+8192));return btoa(bin)};
-async function readBidPdf(bytes){const P=window.PDFLib;const doc=await P.PDFDocument.load(bytes,{ignoreEncryption:true});const out={labor:{},add:[],extra:{}};
+async function readBidPdf(bytes){const P=window.PDFLib;const doc=await P.PDFDocument.load(bytes,{ignoreEncryption:true});const out={labor:{},add:[],extra:{},subs:{}};
  for(const f of doc.getForm().getFields()){const n=f.getName();let v="";try{v=(f.getText&&f.getText())||""}catch{}v=String(v).trim();if(!v)continue;
-  const [k,id]=n.split("|");if(k==="labor")out.labor[id]=v;else if(k==="addArea"||k==="addDesc"||k==="addLabor"){const a=out.add[+id]=out.add[+id]||{};a[k]=v}else out.extra[k]=v}
+  const [k,id]=n.split("|");if(k==="sub")out.subs[id]=v;else if(k==="labor")out.labor[id]=v;else if(k==="addArea"||k==="addDesc"||k==="addLabor"){const a=out.add[+id]=out.add[+id]||{};a[k]=v}else out.extra[k]=v}
  out.add=out.add.filter(a=>a&&(a.addDesc||a.addLabor));return out}
 function applyBidPdf(b,data,via){let n=0;
+ for(const r of b.rooms)if(data.subs)delete r.sub;for(const [id,v] of Object.entries(data.subs||{})){const r=b.rooms.find(x=>x.id===id);if(r)r.sub=v==="yes"?"yes":v}
  for(const [id,v] of Object.entries(data.labor)){const r=b.rooms.find(x=>x.id===id);if(r&&num(v)){r.labor=String(num(v));n++}}
  for(const a of data.add){let r=a.addArea&&(b.rooms.find(x=>x.name.toLowerCase()===a.addArea.trim().toLowerCase())||phaseRoom(b,a.addArea));if(!r){r=b.rooms.find(x=>x.name==="Added by GC");if(!r){r=room(b,"Other");r.name="Added by GC";b.rooms.push(r)}}
   r.added=r.added||[];const item=(r.name==="Added by GC"&&a.addArea?a.addArea.trim()+": ":"")+(a.addDesc||"Additional work").trim();const ex=r.added.find(x=>x.item===item);if(ex)ex.labor=num(a.addLabor)?String(num(a.addLabor)):"";else r.added.push({item,labor:num(a.addLabor)?String(num(a.addLabor)):""});n++}
@@ -455,7 +461,7 @@ async function checkMail(b){const st=$("#mailStatus");st.textContent="Checking f
  catch(x){st.textContent="Couldn't check: "+(x&&x.message||"server unreachable")}}
 /* bids submitted from the GC form land in bid.inbox — load them in */
 function processInbox(b){let n=0;for(const it of b.inbox||[]){if(it.done)continue;const f=it.form||{};
-  const data={labor:f.labor||{},add:(f.add||[]).map(a=>({addArea:a.area||"",addDesc:a.desc||"",addLabor:a.labor||""})),extra:{}};
+  const data={subs:f.subs||{},labor:f.labor||{},add:(f.add||[]).map(a=>({addArea:a.area||"",addDesc:a.desc||"",addLabor:a.labor||""})),extra:{}};
   ["notes","start","total","name","days"].forEach(k=>{if(f[k])data.extra[k]=String(f[k])});if(f.days)b.gcDays=String(f.days);
   applyBidPdf(b,data,"bid form");if(b.responses&&b.responses.length)b.responses[b.responses.length-1].at=new Date(it.at).toLocaleString();it.done=true;n++}
  if(n){save(b);toast(`New bid in for ${b.address||b.id}`)}return n}
@@ -594,7 +600,7 @@ let mcp=null,dl=null;
  const timer=setTimeout(()=>{if(!bids.length)$("#list").innerHTML='<p class="empty">Can\'t reach saved bids yet — still trying.</p>'},10000);
  db.doc("settings/main").onSnapshot(s=>{if(s.exists)settings={...settings,...s.data()};if(settings.gcEmail&&!(settings.gcEmails||[]).length)settings.gcEmails=[settings.gcEmail];document.querySelectorAll("[data-set]").forEach(el=>{if(document.activeElement!==el)el.value=settings[el.dataset.set]||""});const a=document.activeElement;if(!(a&&ed.contains(a)))render()},()=>{});
  db.collection("bids").onSnapshot(s=>{if(!s.metadata.fromCache)clearTimeout(timer);const local=new Map(bids.map(b=>[b.id,b]));
-  bids=s.docs.map(d=>{const b=JSON.parse(JSON.stringify(d.data()));if(q[b.id]&&local.has(b.id)){const l=local.get(b.id),have=new Set((l.inbox||[]).map(x=>x.sid));for(const it of b.inbox||[])if(!have.has(it.sid))(l.inbox=l.inbox||[]).push(it);return l}return fix(b)});
+  bids=s.docs.map(d=>{const b=JSON.parse(JSON.stringify(d.data()));if(q[b.id]&&local.has(b.id)){const l=local.get(b.id),have=new Set((l.inbox||[]).map(x=>x.sid));for(const it of b.inbox||[])if(!have.has(it.sid))(l.inbox=l.inbox||[]).push(it);return l}const was=(b.rooms||[]).map(r=>r.id).join();fix(b);if(was&&was!==b.rooms.map(r=>r.id).join())setTimeout(()=>save(b),0);return b});
   let newBids=0;for(const b of bids)newBids+=processInbox(b);
   for(const b of local.values())if(!bids.some(x=>x.id===b.id)&&q[b.id])bids.push(b);
   renderList();const a=document.activeElement;if(newBids||!(a&&ed.contains(a)&&/INPUT|TEXTAREA/.test(a.tagName)))render()},
