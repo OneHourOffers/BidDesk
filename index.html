@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1HO Bid Desk</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* VOICE: plain, fast, nothing extra.
+   IDEA: a contractor's room-by-room walkthrough card.
+   PICTURE: the room list with one labor number each.
+   COLOUR and TYPE: 1HO petrol, sky, coral; Archivo.
+   LAYOUT: properties left, one property right; stacks on phones. */
+:root{color-scheme:light dark;--bg:light-dark(#f3f6f8,#071a24);--card:light-dark(#fff,#0d2836);--ink:light-dark(#0b2330,#e6f1f6);--mute:light-dark(#567080,#8fb0c0);--line:light-dark(#d8e2e8,#1d3f50);--petrol:#034B68;--sky:#37ADDB;--coral:#F48D82;--ok:light-dark(#0f7a4b,#5fd39a)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Archivo,system-ui,sans-serif;overflow-x:clip}
+header{background:var(--petrol);color:#fff;padding:16px max(4vw,16px)}
+header h1{margin:0;font-size:28px;line-height:1.05}header p{margin:2px 0 0;color:#bfe3f2;font-size:14px}
+main{display:grid;grid-template-columns:280px minmax(0,1fr);gap:20px;padding:20px max(4vw,16px) 48px;max-width:1200px;margin:auto}
+@media(max-width:860px){main{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+h2{font-size:22px;margin:0;line-height:1.15}
+button,.btn{font:700 15px Archivo,sans-serif;min-height:44px;padding:0 16px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none}
+.pri{background:var(--sky);border-color:var(--sky);color:#04293a}.big{min-height:54px;font-size:17px;width:100%}
+.ghost{border-style:dashed}.no{color:var(--coral)}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--sky);outline-offset:1px}
+input,textarea{font:16px Archivo,sans-serif;width:100%;min-height:44px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+textarea{min-height:64px;resize:vertical}
+label{display:block;font-size:13px;color:var(--mute);font-weight:700;margin-bottom:3px}
+.note{font-size:13px;color:var(--mute)}
+.job{display:flex;width:100%;text-align:left;padding:12px;margin-top:8px;flex-direction:column;align-items:stretch;gap:2px;min-height:0}
+.job.sel{border-color:var(--sky);box-shadow:0 0 0 2px var(--sky)}.job small{color:var(--mute);font-weight:500}
+.pill{display:inline-block;font-size:12px;font-weight:700;padding:2px 8px;border-radius:99px;background:var(--line)}
+.p-sent{background:#FACD88;color:#3b2a00}.p-in{background:var(--ok);color:#fff}
+.top{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:10px;margin-top:14px}
+@media(max-width:600px){.top{grid-template-columns:minmax(0,1fr)}}
+.room{border:1px solid var(--line);border-radius:12px;margin-top:12px;overflow:hidden}
+.rh{display:flex;gap:10px;align-items:center;background:var(--petrol);padding:8px 10px}
+.rh input{background:transparent;border:0;color:#fff;font-weight:800;font-size:17px;min-height:40px;padding:4px}
+.rh input:focus{background:#0a5b7c}
+.rh .price{width:130px;flex:none;background:#fff;color:#0b2330;text-align:right;font-weight:700;border-radius:8px}
+.rh .x{background:transparent;border:0;color:#bfe3f2;min-height:40px;padding:0 8px;font-size:18px}
+.rb{padding:10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{min-height:34px;font-size:13px;font-weight:500;padding:0 10px;border-radius:99px}
+.gcadd{margin-top:8px;padding:8px 10px;border-radius:8px;background:light-dark(#fff6e6,#3a2c10);font-size:14px}
+.resend{background:light-dark(#fff6e6,#3a2c10);border-radius:10px;padding:10px 12px;margin-bottom:8px}
+.resp{border:1px solid var(--line);border-radius:10px;margin-top:10px;padding:10px 12px}
+.resp>summary{cursor:pointer;display:flex;gap:8px;flex-wrap:wrap;align-items:center}.resp>summary span{margin-left:auto;font-weight:800;font-size:18px}
+.resp table{width:100%;border-collapse:collapse;margin-top:8px;font-size:15px}.resp td{padding:6px 4px;border-bottom:1px solid var(--line)}.resp .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}.resp .addrow td{color:var(--mute);font-style:italic}.resp .tot td{font-weight:800;border-bottom:0}
+.sroom{border:1px solid var(--line);border-radius:10px;margin-top:10px;overflow:hidden}
+.sh{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;background:light-dark(#eaf4f9,#0a3346)}.sh span{display:flex;align-items:center;gap:6px}.sp{width:120px;text-align:right;font-weight:700}
+.sl{display:grid;grid-template-columns:40px minmax(0,1fr) 100px 36px;gap:6px;align-items:center;padding:4px 10px}.ln{font-size:13px;color:var(--mute);font-weight:700}.sc{text-align:right}
+.sl input{min-height:38px;font-size:15px}.x2{min-height:36px;padding:0;border:0;background:none;color:var(--mute)}
+.sf{display:flex;justify-content:space-between;gap:8px;padding:4px 10px 8px;flex-wrap:wrap;align-items:center}
+@media(max-width:600px){.sl{grid-template-columns:34px minmax(0,1fr) 80px 30px}}
+.mats{margin-top:10px;border-top:1px dashed var(--line);padding-top:8px}.mh{display:flex;justify-content:space-between;font-size:15px}.mh span{font-weight:800}
+.mrow{display:grid;grid-template-columns:minmax(0,1fr) 64px 70px 84px 84px 30px;gap:6px;align-items:center;margin-top:6px}.mrow input{min-height:38px;font-size:15px}.mrow .num{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.mhead{font-size:12px;color:var(--mute);font-weight:700;margin-top:8px}.mf{display:flex;gap:16px;flex-wrap:wrap;margin-top:4px}
+@media(max-width:600px){.mrow{grid-template-columns:minmax(0,1fr) 50px 54px 64px;}.mrow .num,.mrow .x2,.mhead span:nth-child(5),.mhead span:nth-child(6){display:none}}
+.totals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:16px}.totals>div{background:var(--petrol);color:#fff;border-radius:12px;padding:12px 14px}.totals span{display:block;font-size:13px;color:#bfe3f2}.totals b{font-size:clamp(18px,2.4vw,24px);white-space:nowrap}.totals .all{background:#37ADDB;color:#04293a}.totals .all span{color:#04293a}
+.sec{margin:18px 0 4px;font-size:16px}.mline{display:grid;grid-template-columns:minmax(0,1fr) auto 90px;gap:10px;padding:6px 10px;border-top:1px solid var(--line);font-size:15px}.mline .num{text-align:right;font-weight:700}
+.lab{color:#bfe3f2;font-size:13px;font-weight:700;flex:none}
+.rin{width:110px;min-height:36px;text-align:right;font-weight:700;padding:4px 8px}
+#bdLogin{position:fixed;inset:0;background:rgba(3,40,56,.92);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}.bdl{background:var(--card);color:var(--ink);border-radius:14px;padding:22px;width:min(420px,100%)}.bdl h2{margin:0 0 4px}.bderr{color:var(--coral);font-weight:600;min-height:20px}
+.grp{font-size:12px;font-weight:700;color:var(--mute);margin-top:10px}
+.chip.on{background:var(--petrol);border-color:var(--petrol);color:#fff}
+.linkish{background:none;border:0;color:var(--sky);padding:0;min-height:32px;font-size:14px}
+.adds{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}.adds button{min-height:38px;font-size:14px}
+.total{display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding:14px;border-radius:12px;background:var(--petrol);color:#fff;font-weight:800;font-size:20px}
+.step{margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}
+.step h3{margin:0 0 8px;font-size:17px}
+#toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--petrol);color:#fff;padding:10px 16px;border-radius:8px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw;z-index:9}
+#toast.show{opacity:1}
+pre{white-space:pre-wrap;background:var(--bg);border-radius:8px;padding:10px;font:14px/1.45 Archivo,sans-serif}
+.empty{color:var(--mute);padding:16px 4px}
+@media(prefers-reduced-motion:reduce){#toast{transition:none}}
+</style>
+</head>
+<body>
+<header style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h1>Bid Desk</h1><p>1HO Holdings · room-by-room labor bids · saves automatically</p></div><button id="bdOut" style="background:transparent;color:#bfe3f2;border-color:#2a7a9a;min-height:36px">Sign out</button></header>
+<main>
+ <section class="panel">
+  <button class="pri big" id="newBtn">+ New property</button>
+  <div id="list"><p class="empty">Loading…</p></div>
+  <details style="margin-top:18px"><summary class="note" style="cursor:pointer">Setup</summary>
+   <div style="display:grid;gap:8px;margin-top:8px">
+    <div><label for="s-gcName">GC name</label><input id="s-gcName" data-set="gcName"></div>
+    <div><label for="s-gcPhone">GC cell</label><input id="s-gcPhone" data-set="gcPhone" type="tel"></div>
+    <div><label for="s-gcEmail">GC email — scope gets emailed here</label><input id="s-gcEmail" data-set="gcEmail" type="email"></div>
+    <div><label for="s-gcCompany">GC company name</label><input id="s-gcCompany" data-set="gcCompany"></div>
+    <div><label for="s-myName">Your name</label><input id="s-myName" data-set="myName"></div>
+    <div><label for="s-myPhone">Your cell — bids can be texted back here</label><input id="s-myPhone" data-set="myPhone" type="tel"></div>
+    <div><label for="s-myEmail">Your email — bids get emailed back here</label><input id="s-myEmail" data-set="myEmail" type="email"></div>
+    <div><label for="s-gcPass">Contractor portal password (give this to your GC)</label><input id="s-gcPass" data-set="gcPass" autocomplete="off"></div>
+    <div class="note">Contractor portal link: <b id="gcPortalUrl"></b> <button id="copyPortal" style="min-height:34px;font-size:13px">Copy</button><br>Your GC bookmarks this, signs in with the password above, and sees every property you've sent him.</div>
+    <div><label for="impFile">Import properties (Bid Desk export .json)</label><input id="impFile" type="file" accept=".json,application/json" style="padding:8px"></div>
+    <div><label for="s-pageUrl">GC form link (leave blank if gc-bid.html sits next to this page)</label><input id="s-pageUrl" data-set="pageUrl" type="url" placeholder="https://onehouroffers.github.io/gc-bid.html"></div>
+   </div></details>
+ </section>
+ <section class="panel" id="editor"><p class="empty">Pick a property or add a new one.</p></section>
+</main>
+<div id="toast" role="status"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script>
+/* ===== Bid Desk portal: connects this page to the Apps Script back end (runs as holdings@) ===== */
+const BID_DESK_API=""; /* optional: paste your Apps Script Web app URL here so nobody has to enter it */
+(function(){
+ const LS={api:"bd_api",pass:"bd_pass"};const ls=(k,v)=>{try{if(v===undefined)return localStorage.getItem(k)||"";if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch{return""}};
+ const cfg={api:BID_DESK_API||ls(LS.api),pass:ls(LS.pass)};
+ window.BD={get api(){return cfg.api},signOut(){ls(LS.pass,null);location.reload()}};
+ async function call(action,data){if(!cfg.api)throw{code:"auth"};
+  const r=await fetch(cfg.api,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(Object.assign({action,key:cfg.pass},data||{}))});
+  const j=await r.json();if(j&&j.error==="auth"){showLogin("Wrong password.");throw{code:"auth"}}if(!j||!j.ok)throw{code:"tool_error",message:(j&&j.error)||"Server error"};return j}
+ window.BDcall=call;
+ let ready,readyRes;ready=new Promise(r=>readyRes=r);
+ function showLogin(msg){let o=document.getElementById("bdLogin");if(!o){o=document.createElement("div");o.id="bdLogin";document.body.appendChild(o)}
+  o.innerHTML=`<div class="bdl"><h2>1HO Bid Desk</h2><p class="note">Sign in to the portal.</p>${BID_DESK_API?"":`<label for="bdApi">Portal server link (Apps Script Web app URL)</label><input id="bdApi" type="url" value="${(cfg.api||"").replace(/"/g,"&quot;")}" placeholder="https://script.google.com/macros/s/…/exec">`}
+  <label for="bdPass" style="margin-top:10px">Password</label><input id="bdPass" type="password" autocomplete="current-password"><p class="bderr">${msg||""}</p><button class="pri big" id="bdGo">Sign in</button></div>`;
+  o.style.display="flex";const go=async()=>{const a=BID_DESK_API||document.getElementById("bdApi").value.trim(),p=document.getElementById("bdPass").value;
+   if(!/^https:\/\/script\.google(usercontent)?\.com\//.test(a)){o.querySelector(".bderr").textContent="Paste the Web app URL from your Apps Script deployment.";return}
+   cfg.api=a;cfg.pass=p;o.querySelector(".bderr").textContent="Checking…";
+   try{const r=await fetch(a,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"ping",key:p})});const j=await r.json();
+    if(j.ok){ls(LS.api,a);ls(LS.pass,p);o.style.display="none";window.BD.me=j.me;readyRes()}else o.querySelector(".bderr").textContent=j.error==="auth"?"Wrong password.":"Server said: "+j.error}
+   catch(z){o.querySelector(".bderr").textContent="Couldn't reach the server — check the link and that the script is deployed for Anyone."}};
+  o.querySelector("#bdGo").onclick=go;o.querySelector("#bdPass").onkeydown=e=>{if(e.key==="Enter")go()}}
+ document.addEventListener("DOMContentLoaded",async()=>{if(cfg.api&&cfg.pass){try{const j=await call("ping");window.BD.me=j.me;readyRes();return}catch(z){}}showLogin()});
+ /* db: same calls the page already makes, stored in Drive by the back end */
+ const db={doc(path){const [c,id]=path.split("/");return{
+   async set(body){await ready;if(c==="settings")return call("saveSettings",{settings:body});const j=await call("saveBid",{bid:body});return j},
+   async delete(){await ready;if(c==="bids")return call("deleteBid",{id})},
+   onSnapshot(next,err){ready.then(()=>call("getSettings")).then(j=>next({exists:true,data:()=>j.settings||{},metadata:{fromCache:false}})).catch(e=>err&&err(e));return()=>{}}}},
+  collection(){return{onSnapshot(next,err){let stop=false;const load=()=>call("listBids").then(j=>{if(!stop)next({docs:(j.bids||[]).map(b=>({data:()=>b})),metadata:{fromCache:false}})}).catch(e=>{if(e&&e.code!=="auth")err&&err(e)});
+    ready.then(load);const t=setInterval(()=>{if(document.visibilityState==="visible")ready.then(load)},20000);window.BDreload=()=>ready.then(load);return()=>{stop=true;clearInterval(t)}}}}};
+ /* email: sends from holdings@ through the back end */
+ const mcp={async callTool(server,tool,input){await ready;if(tool==="send_message"){const j=await call("send",{to:(input.to||[])[0],subject:input.subject,body:input.body,htmlBody:input.htmlBody,attachments:input.attachments});return{payload:{threadId:j.threadId}}}throw{code:"tool_error",message:"Not available"}}};
+ const downloads={async save({filename,data}){const blob=data instanceof Blob?data:new Blob([data]);const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);return{status:"saved"}}};
+ window.claude={use:async n=>n==="db"?db:n==="mcp"?mcp:n==="downloads"?downloads:null};
+})();
+
+</script>
+<script>
+{
+/* full checklist catalog: [group, items] per room type */
+const G={
+ walls:["Walls & ceiling",["Drywall patch","Replace drywall","Plaster repair","Remove drop ceiling","New ceiling drywall","Popcorn removal","Wall texture","Water-stain repair","Mold remediation","Paint walls","Paint ceiling"]],
+ floors:["Floors",["LVP","Carpet","Carpet pad","Refinish hardwood","Tile","Subfloor repair","Floor leveling","Baseboards","Quarter round","Transition strips","Thresholds"]],
+ trim:["Doors & trim",["Interior door","Door jamb / casing","Door knob / lever","Hinges","Door stop","Closet doors","Bifold doors","Closet rod & shelf","Window casing","Crown molding","Paint trim","Paint doors"]],
+ windows:["Windows",["Replace window","Window repair","Broken glass","Sash balance / cords","Window locks","Screens","Blinds","Window sill"]],
+ elec:["Electrical",["Outlets","Outlet covers","Switches","Switch plates","GFCI outlet","AFCI protection","3-way switch","Light fixture","Can lights","Ceiling fan","Fan-rated box","Junction box covers","Open splices / bad wiring","Smoke detector","CO detector","Cable / data jack"]],
+ heat:["Heat & air",["Supply registers","Return grille","Radiator removal","Baseboard heat","Thermostat"]],
+ misc:["Other",["Trash-out","Deep clean","Pest treatment"]]};
+const INTERIOR=[G.walls,G.floors,G.trim,G.windows,G.elec,G.heat,G.misc];
+const BATH=[["Fixtures",["Vanity","Vanity top / sink","Faucet","Sink drain / pop-up","Toilet","Wax ring / flange","Toilet supply line","Shutoff valves"]],
+ ["Tub & shower",["Tub / shower surround","Tile shower","Reglaze tub","Replace tub","Claw tub conversion","Shower valve","Trim kit","Showerhead","Tub spout / diverter","Tub drain","Shower rod & curtain","Glass door","Caulk & grout"]],
+ ["Accessories",["Mirror","Medicine cabinet","Towel bar","TP holder","Robe hook","Grab bar"]],
+ ["Vent & electrical",["Exhaust fan","Fan vented outside","GFCI outlet","Vanity light","Ceiling light","Outlet covers","Switch plates"]],
+ ["Floor & walls",["Tile floor","LVP floor","Subfloor rot","Cement board","Moisture-resistant drywall","Water damage","Paint"]],G.trim,G.windows];
+const CHECK={
+ "Exterior":[["Roof",["Tear-off & replace","Roof repair","Shingles","Decking / sheathing","Ice & water shield","Drip edge","Flashing","Pipe boots","Ridge vent","Skylight"]],
+  ["Chimney",["Chimney tuck-point","Chimney cap","Chimney flashing","Chimney removal"]],
+  ["Gutters & trim",["Gutters","Downspouts","Downspout extensions","Gutter guards","Fascia","Soffit","Rotted trim"]],
+  ["Siding",["Siding repair","Replace siding","Wood rot repair","Trim wrap","Exterior paint","Brick tuck-point","Exterior caulk"]],
+  ["Doors & windows",["Front door","Back / side door","Storm doors","Deadbolts","Rekey locks","Door frame / threshold","Windows","Window wrap / caulk","Glass block"]],
+  ["Porch & deck",["Porch floor","Porch steps","Railings / handrails","Porch columns","Porch ceiling","Deck repair","Deck stain"]],
+  ["Concrete",["Driveway","Walkway","Front steps","Garage apron","Patio","Mudjacking"]],
+  ["Site",["Tree removal","Tree trimming","Grading / drainage","Yard cleanup","Fence","Retaining wall","Landscaping","Mailbox","House numbers"]],
+  ["Exterior utilities",["Exterior lights","Exterior GFCI","Weatherproof covers","Hose bibs","Gas meter","Electric meter / mast","AC pad"]]],
+ "Roof & attic":[["Framing",["Trusses","Rafters","Sister rafters","Ridge board","Collar ties","Roof decking"]],["Attic",["Attic insulation","Attic ventilation","Baffles","Bath fan vented through roof","Attic access hatch","Knob & tube in attic","Pest / rodent cleanup"]]],
+ "Structure / foundation":[["Foundation",["Foundation cracks","Tuck-point","Bowing wall / anchors","Foundation waterproofing"]],["Framing",["Floor joists","Sister joists","Main beam","Support / jack posts","Sill plate","Rim joist","Subfloor","Load-bearing wall","Header","Frame new wall","Rot / termite repair","Floor leveling"]]],
+ "Kitchen":[["Cabinets",["Paint cabinets","Replace cabinets","Cabinet doors","Hinges","Drawer slides","Handles / pulls","Toe kick","Crown / filler"]],
+  ["Counters",["Laminate counters","Butcher block","Quartz / granite","Backsplash","Counter caulk"]],
+  ["Plumbing",["Sink","Faucet","Garbage disposal","Shutoff valves","Supply lines","P-trap / drain","Dishwasher hookup","Ice maker line"]],
+  ["Appliances",["Range","Gas range hookup","Range hood","Hood vented outside","Microwave","Over-range microwave","Refrigerator","Dishwasher","Appliance circuits"]],
+  G.walls,G.floors,G.windows,["Electrical",["GFCI outlets","Outlets","Outlet covers","Switches","Switch plates","Light fixture","Can lights","Under-cabinet lights","Pendant lights","Smoke detector"]],G.heat],
+ "Living room":INTERIOR,"Dining room":INTERIOR,"Family room":INTERIOR,"Bedroom":INTERIOR,
+ "Hallway / stairs":[G.walls,G.floors,["Stairs",["Stair treads","Stair risers","Stair carpet","Handrail","Balusters","Newel post","Secure railing"]],G.trim,G.elec],
+ "Bathroom":BATH,"Half bath":BATH,
+ "Laundry":[["Laundry",["Washer box / hookups","Dryer vent","Gas dryer line","240V dryer outlet","Utility sink","Floor drain"]],G.walls,G.floors,G.elec],
+ "Basement":[["Water",["Interior waterproofing","Exterior waterproofing","Drylok","Drain tile","Sump pump","Sump pit / lid","Floor drain","Backflow valve","Dehumidifier"]],
+  ["Structure",["Foundation cracks","Tuck-point","Support posts","Main beam","Floor joists","Sill plate"]],
+  ["Stairs & windows",["Basement stairs","Handrail","Glass block windows","Egress window"]],
+  ["Utility",["Laundry hookups","Utility sink","Dryer vent"]],
+  ["Electrical",["Lights / pull chains","Outlets","Outlet covers","Switch plates","GFCI outlets","Smoke detector"]],
+  ["Finish",["Paint floor","Paint walls","Insulation","Mold treatment","Clean-out"]]],
+ "Plumbing":[["Water",["Main water line","Water meter","Main shutoff","Repipe supply (PEX)","Replace galvanized","Shutoff valves","Hose bibs","Leak repair"]],
+  ["Drains & sewer",["Drain / waste lines","Cast iron stack","Vent stack","Sewer scope","Sewer line repair","Clean-out"]],
+  ["Gas",["Gas lines","Gas leak / pressure test","Gas shutoffs","Gas line to range","Gas line to dryer"]],
+  ["Water heater",["Water heater","Water heater venting","Expansion tank","Pressure relief valve"]]],
+ "Electrical":[["Service",["Service upgrade (100/200A)","Panel replacement","Meter base","Mast / service drop","Grounding & bonding","Breakers","AFCI / GFCI breakers"]],
+  ["Wiring",["Full rewire","Knob & tube removal","Aluminum wiring","Open junction boxes","Code corrections"]],
+  ["Devices throughout",["Outlets throughout","Outlet covers throughout","Switches throughout","Switch plates throughout","Hardwired smoke detectors","CO detectors","Doorbell","Exterior lights"]]],
+ "Mechanicals":[["Heat",["Furnace","Boiler","Boiler-to-furnace conversion","Radiator removal","Flue / chimney liner","Gas line to furnace"]],["Cooling",["AC / condenser","Evaporator coil","Line set","Condensate drain"]],["Air",["Ductwork","Duct cleaning","Returns","Registers","Thermostat","Filter","Tune-up"]],["Water heater",["Water heater","Water heater venting","Expansion tank"]]],
+ "Garage":[["Garage",["Garage door","Garage door opener","Service door","Garage roof","Garage siding","Garage paint","Slab repair","Lights","Outlets","Outlet covers","Clean-out","Demo garage"]]],
+ "Whole house":[["Whole house",["Demo / trash-out","Dumpster","Permits","Point-of-sale violations","Lead paint","Asbestos","Mold","Pest / termite","Smoke & CO throughout","Rekey all locks","Paint throughout","Flooring throughout","Doors & hardware throughout","Final clean"]]]};
+CHECK["Attic"]=CHECK["Roof & attic"];
+const START=["Exterior","Roof & attic","Kitchen","Living room","Bedroom","Bedroom","Bathroom","Basement","Plumbing","Electrical","Mechanicals","Whole house"];
+const ADD=["Bedroom","Bathroom","Half bath","Dining room","Family room","Hallway / stairs","Laundry","Garage","Roof & attic","Structure / foundation","Plumbing","Electrical","Mechanicals","Whole house","Other"];
+const $=s=>document.querySelector(s);
+const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const num=v=>{const n=parseFloat(String(v??"").replace(/[$,\s]/g,""));return isFinite(n)?n:0};
+const money=n=>"$"+Math.round(n).toLocaleString("en-US");
+const today=()=>new Date().toISOString().slice(0,10);
+const rid=()=>Math.random().toString(36).slice(2,8);
+const toast=m=>{const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove("show"),2600)};
+let db=null,bids=[],sel=null,settings={gcName:"Josh"},readOnly=false;
+const openCheck=new Set();
+
+function nameFor(b,type){if(type==="Other")return"New room";const same=b.rooms.filter(r=>r.type===type).length;
+ if(["Bedroom","Bathroom"].includes(type))return type+" "+(same+1);return same?type+" "+(same+1):type}
+function room(b,type){return{id:rid(),type,name:nameFor(b,type),note:"",items:[],labor:""}}
+function fix(b){if(!b.rooms)b.rooms=[];
+ for(const r of b.rooms){if(r.labor==null){const s=(r.items||[]).reduce((t,i)=>t+(typeof i==="object"?num(i.labor)+num(i.price):0),0);r.labor=s?String(s):""}
+  r.items=(r.items||[]).map(i=>typeof i==="string"?i:i.item).filter(Boolean);r.note=r.note||""}return b}
+const sent=b=>{const f=(b.rooms||[]).filter(r=>r.note.trim()||r.items.length);return f.length?f:(b.rooms||[])};
+/* materials */
+const MAT={"outlet covers":["Outlet covers","ea"],"outlet covers throughout":["Outlet covers","ea"],"switch plates":["Switch plates","ea"],"switch plates throughout":["Switch plates","ea"],"outlets":["Outlets (15A tamper-resistant)","ea"],"outlets throughout":["Outlets (15A tamper-resistant)","ea"],"replace outlets":["Outlets (15A tamper-resistant)","ea"],"switches":["Light switches","ea"],"switches throughout":["Light switches","ea"],"gfci outlet":["GFCI outlets","ea"],"gfci outlets":["GFCI outlets","ea"],"light fixture":["Light fixtures","ea"],"light fixtures":["Light fixtures","ea"],"ceiling fan":["Ceiling fan w/ light","ea"],"can lights":["LED can lights","ea"],"smoke detector":["Smoke detectors","ea"],"co detector":["CO detectors","ea"],"smoke & co throughout":["Smoke/CO combo detectors","ea"],
+ "lvp":["LVP flooring","sq ft"],"flooring":["LVP flooring","sq ft"],"lvp floor":["LVP flooring","sq ft"],"flooring throughout":["LVP flooring","sq ft"],"carpet":["Carpet","sq ft"],"carpet pad":["Carpet pad","sq ft"],"tile":["Floor tile","sq ft"],"tile floor":["Floor tile","sq ft"],"baseboards":["Baseboard","lin ft"],"quarter round":["Quarter round","lin ft"],"transition strips":["Transition strips","ea"],
+ "paint":["Wall paint","gal"],"paint walls":["Wall paint","gal"],"paint ceiling":["Ceiling paint","gal"],"paint trim":["Trim paint","gal"],"paint doors":["Door paint","gal"],"paint throughout":["Wall paint","gal"],"paint cabinets":["Cabinet paint","gal"],
+ "drywall":["Drywall sheets 4x8","sheet"],"drywall patch":["Joint compound","bucket"],"replace drywall":["Drywall sheets 4x8","sheet"],"new ceiling drywall":["Drywall sheets 4x8","sheet"],
+ "interior door":["Interior door slab","ea"],"door knob / lever":["Door levers","ea"],"door & hardware":["Door levers","ea"],"door knob / hardware":["Door levers","ea"],"doors & hardware throughout":["Door levers","ea"],"hinges":["Hinges","ea"],"door stop":["Door stops","ea"],"closet doors":["Closet doors","ea"],"blinds":["Blinds","ea"],"closet rod & shelf":["Closet rod & shelf kit","ea"],
+ "faucet":["Faucet","ea"],"sink":["Sink","ea"],"sink & faucet":["Sink & faucet","ea"],"toilet":["Toilet","ea"],"vanity":["Vanity","ea"],"vanity top / sink":["Vanity top","ea"],"tub / shower surround":["Tub/shower surround kit","ea"],"showerhead":["Showerhead","ea"],"shower rod & curtain":["Shower rod & curtain","ea"],"mirror":["Mirror","ea"],"towel bar / tp holder":["Towel bar & TP holder set","ea"],"towel bar":["Towel bar","ea"],"tp holder":["TP holder","ea"],"exhaust fan":["Bath exhaust fan","ea"],"vanity light":["Vanity light","ea"],"caulk":["Caulk","tube"],"caulk & grout":["Caulk","tube"],
+ "countertops":["Countertop","lin ft"],"laminate counters":["Laminate countertop","lin ft"],"cabinet hardware":["Cabinet handles","ea"],"handles / pulls":["Cabinet handles","ea"],"backsplash":["Backsplash tile","sq ft"],"garbage disposal":["Garbage disposal","ea"],"range hood":["Range hood","ea"],
+ "drylok":["Drylok","gal"],"interior waterproofing":["Drylok","gal"],"paint floor":["Floor paint","gal"],"sump pump":["Sump pump","ea"],"water heater":["Water heater","ea"],"furnace":["Furnace","ea"],"thermostat":["Thermostat","ea"],"supply registers":["Supply registers","ea"],"register / vent covers":["Vent covers","ea"],
+ "garage door":["Garage door","ea"],"garage door opener":["Garage door opener","ea"],"front door":["Front entry door","ea"],"storm doors":["Storm door","ea"],"deadbolts":["Deadbolts","ea"],"rekey all locks":["Lock rekey kit","ea"],"gutters":["Gutters","lin ft"],"downspouts":["Downspouts","ea"],"shingles":["Shingles","bundle"],"windows":["Vinyl windows","ea"],"replace window":["Vinyl window","ea"],"insulation":["Insulation","bag"],"attic insulation":["Blown insulation","bag"]};
+const matSum=m=>num(m.q)*num(m.c);
+const money2=n=>"$"+(+n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const matTotal=r=>(r.mats||[]).reduce((s,m)=>s+matSum(m),0);
+const matsAll=b=>(b.rooms||[]).reduce((s,r)=>s+matTotal(r),0);
+function suggestMats(r){r.mats=r.mats||[];const have=new Set(r.mats.map(m=>m.d.toLowerCase()));let n=0;
+ const src=[...r.items];const note=(r.note||"").toLowerCase();
+ const KW=[[/\blvp\b/,"LVP flooring","sq ft"],[/carpet/,"Carpet","sq ft"],[/carpet/,"Carpet pad","sq ft"],[/drylok/,"Drylok","gal"],[/baseboard/,"Baseboard","lin ft"],[/outlet cover/,"Outlet covers","ea"],[/switch(es)?\b|switch plate/,"Switch plates","ea"],[/new switches/,"Light switches","ea"],[/\bfans?\b/,"Ceiling fan w/ light","ea"],[/can lights?/,"LED can lights","ea"],[/light fixture/,"Light fixtures","ea"],[/faucet/,"Faucet","ea"],[/\bsink\b/,"Sink","ea"],[/countertop|counter/,"Countertop","lin ft"],[/cabinet.*(paint|black|white)|paint.*cabinet/,"Cabinet paint","gal"],[/hardware|handles|pulls/,"Cabinet handles","ea"],[/door hardware|door handles|door knob|levers/,"Door levers","ea"],[/drywall|drop ceiling/,"Drywall sheets 4x8","sheet"],[/drywall|patch/,"Joint compound","bucket"],[/blinds/,"Blinds","ea"],[/toilet/,"Toilet","ea"],[/vanity/,"Vanity","ea"],[/furnace/,"Furnace","ea"],[/duct/,"Ductwork materials","lot"],[/garage door/,"Garage door","ea"],[/opener|motor/,"Garage door opener","ea"],[/shower rod|curtain/,"Shower rod & curtain","ea"],[/shower head|showerhead/,"Showerhead","ea"],[/surround/,"Tub/shower surround kit","ea"],[/caulk/,"Caulk","tube"],[/vinyl windows?|new windows?/,"Vinyl windows","ea"],[/\bpaint\b|grey|gray/,"Wall paint","gal"],[/black trim|trim/,"Trim paint","gal"],[/white doors|paint doors/,"Door paint","gal"],[/paint (the )?floors?|floors? gray|floor paint/,"Floor paint","gal"],[/smoke/,"Smoke detectors","ea"],[/landscap|yard/,"Mulch / landscaping","lot"],[/siding/,"Siding","sq"]];
+ const add=(d,u)=>{if(have.has(d.toLowerCase()))return;have.add(d.toLowerCase());r.mats.push({d,q:"",u,c:""});n++};
+ for(const [re,d,u] of KW)if(re.test(note))add(d,u);
+ for(const it of src){const m=MAT[it.toLowerCase()];const [d,u]=m||[it,"ea"];if(!m&&!/cover|plate|fixture|fan|door|window|faucet|sink|toilet|vanity|light|detector|outlet|switch|hardware|blind/i.test(it))continue;
+  add(d,u)}
+ return n}
+function matHTML(r,i){const ms=r.mats||[];return`<div class="mats"><div class="mh"><b>Materials to buy</b><span id="mt${i}">${matTotal(r)?money(matTotal(r)):""}</span></div>
+ ${ms.length?`<div class="mrow mhead"><span>Item</span><span>Qty</span><span>Unit</span><span>$ each</span><span>Total</span><span></span></div>${ms.map((m,k)=>`<div class="mrow"><input data-m="${i}" data-mi="${k}" data-mk="d" value="${esc(m.d)}" placeholder="What to buy" aria-label="Material"><input data-m="${i}" data-mi="${k}" data-mk="q" value="${esc(m.q)}" inputmode="decimal" aria-label="Quantity"><input data-m="${i}" data-mi="${k}" data-mk="u" value="${esc(m.u)}" aria-label="Unit"><input data-m="${i}" data-mi="${k}" data-mk="c" value="${esc(m.c)}" inputmode="decimal" placeholder="$" aria-label="Cost each"><span class="num" id="ml${i}-${k}">${matSum(m)?money(matSum(m)):""}</span><button class="x2" data-mdel="${i}:${k}" aria-label="Remove">✕</button></div>`).join("")}`:""}
+ <div class="mf"><button class="linkish" data-msug="${i}">Suggest from this room</button><button class="linkish" data-madd="${i}">+ Add material</button></div></div>`}
+const roomSum=r=>num(r.labor)+(r.added||[]).reduce((s,a)=>s+num(a.labor),0);
+const total=b=>(b.rooms||[]).reduce((s,r)=>s+roomSum(r),0);
+
+/* save: one write at a time per doc */
+const q={};
+function save(b){if(!db||readOnly)return;b.updated=new Date().toISOString();const id=b.id;q[id]=q[id]||{chain:Promise.resolve()};clearTimeout(q[id].t);
+ q[id].t=setTimeout(()=>{const body=JSON.parse(JSON.stringify(b));q[id].chain=q[id].chain.then(()=>db.doc("bids/"+id).set(body)).catch(e=>{if(e&&e.code==="invalid_argument"){readOnly=true;toast("This view can't save")}else toast("Save failed — will retry on next edit")})},600)}
+function saveSettings(){if(!db||readOnly)return;clearTimeout(saveSettings.t);saveSettings.t=setTimeout(()=>db.doc("settings/main").set({...settings}).catch(()=>{}),600)}
+
+function renderList(){const rows=[...bids].sort((a,b)=>(b.updated||"").localeCompare(a.updated||""));
+ $("#list").innerHTML=rows.length?rows.map(b=>{const st=b.status==="in"?["in","Bid in · "+money(total(b))]:b.status==="sent"?["sent","Sent "+(b.sentAt||"")]:["","Not sent"];
+  return `<button class="job ${sel===b.id?"sel":""}" data-id="${esc(b.id)}"><b>${esc(b.address||"New property")}</b><span><span class="pill p-${st[0]}">${esc(st[1])}</span></span></button>`}).join(""):'<p class="empty">No properties yet.</p>'}
+
+function respHTML(b){const rs=b.responses||[];if(!rs.length)return`<p class="empty" style="padding:6px 0">No bids yet. When ${esc(settings.gcName||"the GC")} replies, his numbers show up here room by room.</p>`;
+ return rs.map((r,k)=>{const latest=k===rs.length-1;const rows=(r.rooms||[]).filter(x=>num(x.labor)||(x.added||[]).length);
+  return `<details class="resp" ${latest?"open":""}><summary><b>${latest?"Latest bid":"Earlier bid"}</b> · ${esc(r.at)} · by ${esc(r.via)}<span${latest?' id="respHead"':""}>${r.unparsed&&!latest?"see message":money(latest?total(b):r.total)}</span></summary>
+  ${latest?`<table><tbody>${b.rooms.map((x,ri)=>({x,ri})).filter(({x})=>sent(b).includes(x)||num(x.labor)||(x.added||[]).length).map(({x,ri})=>`<tr><td>${esc(x.name)}</td><td class="num"><input class="rin" data-r="${ri}" data-rk="labor" value="${esc(x.labor)}" inputmode="decimal" placeholder="$" aria-label="Labor for ${esc(x.name)}"></td></tr>${(x.added||[]).map((a,ai)=>`<tr class="addrow"><td>+ ${esc(a.item)}</td><td class="num"><input class="rin" data-ai="${ri}:${ai}" value="${esc(a.labor)}" inputmode="decimal" placeholder="$" aria-label="Labor for ${esc(a.item)}"></td></tr>`).join("")}`).join("")}<tr class="tot"><td>Total</td><td class="num" id="respTot">${money(total(b))}</td></tr></tbody></table><p class="note">Every price is editable — changes update the room and all totals.</p>`:rows.length?`<table><tbody>${rows.map(x=>`<tr><td>${esc(x.name)}</td><td class="num">${num(x.labor)?money(num(x.labor)):"—"}</td></tr>${(x.added||[]).map(a=>`<tr class="addrow"><td>+ ${esc(a.item)}</td><td class="num">${num(a.labor)?money(num(a.labor)):"no price"}</td></tr>`).join("")}`).join("")}<tr class="tot"><td>Total</td><td class="num">${money(r.total)}</td></tr></tbody></table>`:`<p class="note">Couldn't read room prices from this one — here's what he sent:</p>`}
+  <details><summary class="note" style="cursor:pointer">His message</summary><pre>${esc(r.raw)}</pre></details>
+  ${latest?"":`<button data-use-resp="${k}" style="margin-top:8px;min-height:36px">Use this bid instead</button>`}</details>`}).reverse().join("")}
+function render(){const b=bids.find(x=>x.id===sel),ed=$("#editor");if(!b){ed.innerHTML='<p class="empty">Pick a property or add a new one.</p>';return}
+ fix(b);const g=esc(settings.gcName||"GC");
+ ed.innerHTML=`<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><h2>${esc(b.address||"New property")}</h2><button class="no" id="del" style="min-height:36px">Delete</button></div>
+ <div class="top"><div><label for="f-address">Address</label><input id="f-address" data-k="address" placeholder="1234 E 99th St, Cleveland, OH 44104"></div>
+  <div><label for="f-dueDate">Need bid by</label><input id="f-dueDate" data-k="dueDate" type="date"></div>
+  <div style="grid-column:1/-1"><label for="f-access">Access / notes for ${g}</label><input id="f-access" data-k="access" placeholder="Lockbox 1234, vacant"></div></div>
+ ${b.rooms.map((r,i)=>{const list=CHECK[r.type]||(r.type==="Other"?INTERIOR:[]),on=new Set(r.items);
+  return `<div class="room"><div class="rh"><input data-r="${i}" data-rk="name" value="${esc(r.name)}" aria-label="Room name"><span class="lab">Labor</span><input class="price" data-r="${i}" data-rk="labor" value="${esc(r.labor)}" inputmode="decimal" placeholder="Labor $" title="Labor (GC bid)" aria-label="Labor for ${esc(r.name)}"><button class="x" data-rdel="${i}" aria-label="Remove ${esc(r.name)}">✕</button></div>
+  <div class="rb"><textarea data-r="${i}" data-rk="note" placeholder="What needs done in this room — leave blank to skip it" aria-label="Work for ${esc(r.name)}">${esc(r.note)}</textarea>
+  ${r.items.length?`<div class="chips">${r.items.map(t=>`<button class="chip on" data-r="${i}" data-chip="${esc(t)}">✓ ${esc(t)}</button>`).join("")}</div>`:""}
+  ${(r.added||[]).length?`<div class="gcadd"><b>${esc(settings.gcName||"GC")} added:</b>${r.added.map((a,k)=>`<div>${esc(a.item)} — ${a.labor?money(num(a.labor)):"no price"} <button class="linkish no" data-adel="${i}:${k}">remove</button></div>`).join("")}</div>`:""}
+  ${list.length?`<button class="linkish" data-check="${esc(r.id)}">${openCheck.has(r.id)?"Hide checklist":`+ Full checklist (${list.reduce((n,g)=>n+g[1].length,0)} items)`}</button>`:""}
+  ${openCheck.has(r.id)?list.map(([gn,its])=>{const left=its.filter(t=>!on.has(t));return left.length?`<div class="grp">${esc(gn)}</div><div class="chips" style="margin-top:4px">${left.map(t=>`<button class="chip" data-r="${i}" data-chip="${esc(t)}">${esc(t)}</button>`).join("")}</div>`:""}).join(""):""}${matHTML(r,i)}</div></div>`}).join("")}
+ <div class="adds"><span class="note" style="align-self:center">Add:</span>${ADD.map(t=>`<button class="ghost" data-add="${esc(t)}">${esc(t)}</button>`).join("")}</div>
+ <div class="totals"><div><span>Labor</span><b id="tot">${money(total(b))}</b></div><div><span>Materials</span><b id="mtot">${money(matsAll(b))}</b></div><div class="all"><span>All-in</span><b id="atot">${money(total(b)+matsAll(b))}</b></div></div>
+ <div style="margin-top:8px"><button id="shopCsv">Download materials shopping list</button></div>
+ <div class="step"><h3>Send to ${g}</h3>
+  <p class="note">Emails ${g} the full scope from your Gmail with a <b>Tap here to reply with your prices</b> button — it opens a reply with every area listed so he just types each price and hits Send. Then hit <b>Check email for ${g}'s reply</b> and his numbers load in.</p>
+  <div style="margin-bottom:10px"><label for="sendTo">Send to ${g}'s email</label><input id="sendTo" data-set="gcEmail" type="email" value="${esc(settings.gcEmail||"")}" placeholder="josh@…"></div>
+  ${(()=>{const sent=(b.sends||[]).length||b.status==="sent";return `${sent?`<div class="resend"><b>Sent${b.sentAt?" "+esc(b.sentAt):""}.</b> ${g} didn't get it? Resend it:</div>`:""}
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="pri big" id="emailGc" style="flex:1 1 240px">${sent?"↻ Resend":"Email"} Scope of Work${settings.gcEmail?"":" (add email above)"}</button><button id="copy" style="flex:1 1 160px">${sent?"↻ Copy text again":"Copy as text"}</button><button id="pdf" style="flex:1 1 140px">Download PDF</button></div>`})()}
+  ${true?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><a class="btn" id="formLink" href="#" target="_blank" rel="noopener" style="flex:1 1 200px">Open ${g}'s bid form</a><button id="copyForm" style="flex:1 1 200px">Copy bid form link</button></div><p class="note">This is the full link for this property — the hosted page alone has no bid details.</p>`:`<p class="note"></p>`}
+  <p class="note" id="sendStatus"></p>${(b.sends||[]).length?`<div class="note"><b>Send history</b>${b.sends.map(x=>`<div>${esc(x.at)} — ${esc(x.how||"email")}${x.to?" → "+esc(x.to):""}</div>`).join("")}</div>`:""}
+  <details style="margin-top:10px"><summary class="note" style="cursor:pointer">Plain-text version</summary><pre>${esc(message(b))}</pre></details></div>
+ <div class="step" id="bids"><h3>${g}'s bids for this property</h3>${respHTML(b)}
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="pri" id="checkMail">Check email for ${g}'s reply</button></div><p class="note" id="mailStatus"></p>
+  <label for="pdfIn" style="margin-top:12px">Got his filled-in PDF another way? Drop it here</label><input id="pdfIn" type="file" accept="application/pdf,.pdf" style="padding:8px">
+  <label for="paste" style="margin-top:12px">Got it by text? Paste it here</label><textarea id="paste" placeholder="1 - 3500&#10;2 - 6200&#10;+ Kitchen: replace window - 300"></textarea><div style="margin-top:8px"><button id="parse">Log this reply</button></div></div>
+ <div class="step" id="sow"><h3>Line-by-line Scope of Work</h3>${sowHTML(b)}</div>`;
+ ed.querySelectorAll("[data-k]").forEach(el=>el.value=b[el.dataset.k]??"");
+ gcLink(b).then(l=>{const a=document.getElementById("formLink");if(a&&l)a.href=l})}
+
+/* the text Josh gets */
+function message(b){const g=(settings.gcName||"").split(" ")[0]||"Hey",rooms=sent(b);
+ const out=[`${g} — need a labor bid on ${b.address||"this property"}${b.dueDate?" by "+b.dueDate:""}.`];if(b.access)out.push(`Access: ${b.access}`);out.push("");
+ rooms.forEach((r,i)=>{out.push(`${i+1}. ${r.name.toUpperCase()}`);if(r.note.trim())out.push(r.note.trim());if(r.items.length)out.push("Includes: "+r.items.join(", "));out.push("")});
+ out.push("Reply with your labor price for each room:");rooms.slice(0,2).forEach((r,i)=>out.push(`${i+1} - $`));if(rooms.length>2)out.push("…");
+ out.push("","Anything I missed, add it like:",`+ ${rooms[0]?rooms[0].name:"Kitchen"}: what needs done - $`,"","Thanks!"+(settings.myName?" — "+settings.myName:""));
+ return out.join("\n")}
+/* lender-grade Scope of Work PDF */
+const pdfName=b=>`Scope-of-Work_${(b.address||"property").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,"")}.pdf`;
+function sow(b,li){if(!window.jspdf){toast("PDF tools didn't load — reload the page");return null}if(!b.address){toast("Add the address first");return null}
+ const rooms=sent(b);if(!li&&!rooms.some(r=>r.note.trim()||r.items.length)){toast("Add notes to at least one room first");return null}if(li&&!b.sow){toast("Build the line-by-line scope first");return null}
+ const {jsPDF}=window.jspdf,d=new jsPDF({unit:"pt",format:"letter"}),W=612,L=48,ink=[11,35,48],mute=[86,112,128],pet=[3,75,104];
+ d.setFillColor(...pet);d.rect(0,0,W,8,"F");
+ d.setTextColor(...ink);d.setFont("helvetica","bold");d.setFontSize(20);d.text("SCOPE OF WORK",L,52);
+ d.setFont("helvetica","normal");d.setFontSize(10);d.setTextColor(...mute);d.text(li?"Line-Item Renovation Budget":"Renovation Scope & Labor Bid",L,68);
+ d.setFont("helvetica","bold");d.setTextColor(...ink);d.setFontSize(11);d.text("1HO Holdings LLC",W-L,52,{align:"right"});
+ d.setFont("helvetica","normal");d.setFontSize(9);d.setTextColor(...mute);d.text("Owner / Borrower",W-L,66,{align:"right"});
+ d.setDrawColor(200,212,220);d.line(L,82,W-L,82);
+ const info=[["Property",b.address],["Prepared",new Date().toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"})],["Contractor",[settings.gcCompany,settings.gcName].filter(Boolean).join(" — ")||""],["Bid due",b.dueDate||""],["Access",b.access||""]].filter(r=>r[1]);
+ d.autoTable({startY:92,body:info,theme:"plain",styles:{fontSize:10,cellPadding:{top:2,bottom:2,left:0,right:6},textColor:ink},columnStyles:{0:{fontStyle:"bold",cellWidth:80,textColor:mute}},margin:{left:L,right:L}});
+ if(li){const body=[],mny=v=>num(v)?money(num(v)):"";let gt=0;
+  b.sow.rooms.forEach((r,k)=>{gt+=num(r.price);body.push([{content:`${k+1}`,styles:{fillColor:[234,244,249],fontStyle:"bold",halign:"center"}},{content:r.name.toUpperCase(),styles:{fillColor:[234,244,249],fontStyle:"bold"}},{content:"",styles:{fillColor:[234,244,249]}}]);
+   r.lines.filter(l=>l.d.trim()).forEach((l,m)=>body.push([`${k+1}.${m+1}`,l.d,mny(l.c)]));
+   body.push(["",{content:`${r.name} subtotal`,styles:{halign:"right",fontStyle:"bold"}},{content:mny(r.price),styles:{fontStyle:"bold"}}])});
+  d.setFont("helvetica","bold");d.setFontSize(13);d.setTextColor(...ink);d.text("LABOR",L,d.lastAutoTable.finalY+26);
+  d.autoTable({startY:d.lastAutoTable.finalY+34,head:[["Line","Description of work","Labor"]],body,foot:[[{content:"LABOR TOTAL",colSpan:2,styles:{halign:"right"}},gt?money(gt):""]],
+   theme:"grid",showHead:"everyPage",styles:{font:"helvetica",fontSize:9.5,cellPadding:5,textColor:ink,lineColor:[200,212,220],valign:"top"},
+   headStyles:{fillColor:pet,textColor:255,fontStyle:"bold"},footStyles:{fillColor:pet,textColor:255,fontStyle:"bold",fontSize:11},
+   columnStyles:{0:{cellWidth:38,halign:"center"},2:{cellWidth:90,halign:"right"}},margin:{left:L,right:L,bottom:60}});
+  const mr=(b.rooms||[]).filter(r=>(r.mats||[]).some(m=>m.d.trim()));let my=d.lastAutoTable.finalY+30;if(my>680){d.addPage();my=60}
+  if(mr.length){const mb=[];mr.forEach(r=>{mb.push([{content:r.name.toUpperCase(),colSpan:5,styles:{fillColor:[234,244,249],fontStyle:"bold"}}]);
+    r.mats.filter(m=>m.d.trim()).forEach(m=>mb.push([m.d,m.q||"",m.u||"",num(m.c)?money2(num(m.c)):"",matSum(m)?money2(matSum(m)):""]));
+    mb.push([{content:`${r.name} materials`,colSpan:4,styles:{halign:"right",fontStyle:"bold"}},{content:money(matTotal(r)),styles:{fontStyle:"bold"}}])});
+   d.setFont("helvetica","bold");d.setFontSize(13);d.setTextColor(...ink);d.text("MATERIALS",L,my);
+   d.autoTable({startY:my+8,head:[["Item","Qty","Unit","Cost each","Total"]],body:mb,foot:[[{content:"MATERIALS TOTAL",colSpan:4,styles:{halign:"right"}},money(matsAll(b))]],
+    theme:"grid",showHead:"everyPage",styles:{font:"helvetica",fontSize:9.5,cellPadding:5,textColor:ink,lineColor:[200,212,220]},
+    headStyles:{fillColor:pet,textColor:255,fontStyle:"bold"},footStyles:{fillColor:pet,textColor:255,fontStyle:"bold",fontSize:11},
+    columnStyles:{1:{cellWidth:44,halign:"right"},2:{cellWidth:50},3:{cellWidth:70,halign:"right"},4:{cellWidth:80,halign:"right"}},margin:{left:L,right:L,bottom:60}})}
+  d.autoTable({startY:d.lastAutoTable.finalY+18,body:[["Labor",money(gt)],["Materials",money(matsAll(b))],[{content:"PROJECT TOTAL",styles:{fontStyle:"bold"}},{content:money(gt+matsAll(b)),styles:{fontStyle:"bold"}}]],
+   theme:"plain",styles:{fontSize:11,textColor:ink,cellPadding:4},columnStyles:{0:{halign:"right"},1:{cellWidth:110,halign:"right"}},margin:{left:W/2,right:L}})}
+ else{
+ const body=[];let n=0;
+ for(const r of rooms){n++;const desc=[r.note.trim(),r.items.length?"Includes: "+r.items.join(", ")+".":""].filter(Boolean).join("\n");
+  body.push([n,r.name,desc||"Per walkthrough",num(r.labor)?money(num(r.labor)):""]);
+  for(const a of r.added||[])body.push(["",{content:"Contractor addition",styles:{fontStyle:"italic",textColor:mute}},a.item,num(a.labor)?money(num(a.labor)):""])}
+ const priced=total(b)>0;
+ if(!priced)for(let i=0;i<4;i++)body.push(["","Additional","",""]);
+ d.autoTable({startY:d.lastAutoTable.finalY+14,head:[["#","Area","Scope of work","Labor"]],body,
+  foot:[[{content:"TOTAL LABOR",colSpan:3,styles:{halign:"right"}},priced?money(total(b)):""]],showFoot:"lastPage",
+  theme:"grid",showHead:"everyPage",styles:{font:"helvetica",fontSize:9.5,cellPadding:6,textColor:ink,lineColor:[200,212,220],valign:"top"},
+  headStyles:{fillColor:pet,textColor:255,fontStyle:"bold"},footStyles:{fillColor:[234,244,249],textColor:ink,fontStyle:"bold",fontSize:11},
+  columnStyles:{0:{cellWidth:24,halign:"center"},1:{cellWidth:96,fontStyle:"bold"},3:{cellWidth:80,halign:"right"}},margin:{left:L,right:L,bottom:60}});
+ }
+ let y=d.lastAutoTable.finalY+26;if(y>560){d.addPage();y=60}
+ d.setFontSize(9);d.setTextColor(...mute);d.setFont("helvetica","normal");
+ const terms=d.splitTextToSize((li?"Labor by Contractor; materials listed are purchased by Owner.":"Labor only unless noted. Materials are purchased by Owner.")+" Work to be performed in a workmanlike manner per local code; Contractor to pull required permits. Any change to this scope requires written approval from Owner before work begins. Payment by draw against completed line items.",W-2*L);
+ d.text(terms,L,y);y+=terms.length*12+16;
+ const field=(lab,x,yy,w)=>{d.setDrawColor(120);d.line(x,yy,x+w,yy);d.setFontSize(8);d.setTextColor(...mute);d.text(lab,x,yy+11)};
+ const half=(W-2*L-24)/2;
+ field("Estimated start date",L,y,half);field("Estimated completion date",L+half+24,y,half);y+=40;
+ field("Contractor license #",L,y,half);field("Insurance carrier / policy #",L+half+24,y,half);y+=48;
+ d.setFont("helvetica","bold");d.setFontSize(10);d.setTextColor(...ink);d.text("OWNER",L,y);d.text("CONTRACTOR",L+half+24,y);y+=30;
+ field("1HO Holdings LLC"+(settings.myName?" — "+settings.myName:"")+" · Signature / Date",L,y,half);field((settings.gcCompany||settings.gcName||"Contractor")+" · Signature / Date",L+half+24,y,half);
+ const pages=d.getNumberOfPages();for(let i=1;i<=pages;i++){d.setPage(i);d.setFontSize(8);d.setTextColor(...mute);d.text(`${b.address}  ·  Scope of Work${li?" — Line Items":""}`,L,770);d.text(`Page ${i} of ${pages}`,W-L,770,{align:"right"})}
+ return d}
+/* log a GC reply: fills room prices and keeps a dated record */
+function applyReply(b,txt,via){let n=0;
+  for(const ln of txt.split(/\n/)){if(/^\s*\+\s*Area:\s*what needs done/i.test(ln))continue;const tl=ln.match(/^\s*timeline[^\d]*(\d{1,3})/i);if(tl){b.gcDays=tl[1];continue}const plus=ln.match(/^\s*\+\s*(?:(.+?):)?\s*(.+?)(?:\s*[–—-]\s*\$?\s*([\d,]+(?:\.\d+)?)\s*(k)?)?\s*$/i);
+   if(plus){let r=plus[1]&&b.rooms.find(x=>x.name.toLowerCase()===plus[1].trim().toLowerCase());if(!r){r=b.rooms.find(x=>x.name==="Added by GC");if(!r){r=room(b,"Other");r.name="Added by GC";b.rooms.push(r)}}
+    r.added=r.added||[];const item=plus[1]&&r.name==="Added by GC"?plus[1].trim()+": "+plus[2].trim():plus[2].trim();if(!r.added.some(x=>x.item===item))r.added.push({item,labor:plus[3]?String(num(plus[3])*(plus[4]?1000:1)):""});n++;continue}
+   const m=ln.match(/^\s*(\d{1,2})[.)]?\s+(.+?)\s*[–—:-]\s*\$?\s*([\d,]+(?:\.\d+)?)\s*(k)?\s*$/i)||ln.match(/^\s*(\d{1,2})\s*[.):–—-]\s*\$?\s*([\d,]+(?:\.\d+)?)\s*(k)?\s*$/i);
+   if(m){const has=m.length===5,i=+m[1]-1,v=num(has?m[3]:m[2])*((has?m[4]:m[3])?1000:1);const r=(has&&b.rooms.find(x=>x.name.toLowerCase()===m[2].trim().toLowerCase()))||sent(b)[i];if(r){r.labor=String(v);n++}continue}
+   const nm=ln.match(/^\s*(.+?)\s*[–—:-]\s*\$?\s*([\d,]+(?:\.\d+)?)\s*(k)?\s*$/i);if(nm){const r=b.rooms.find(x=>x.name.toLowerCase()===nm[1].trim().toLowerCase());if(r){r.labor=String(num(nm[2])*(nm[3]?1000:1));n++}}}
+ if(n){b.status="in";b.bidAt=today();(b.responses=b.responses||[]).push({at:new Date().toLocaleString(),via,raw:txt,total:total(b),rooms:b.rooms.map(r=>({id:r.id,name:r.name,labor:r.labor,added:JSON.parse(JSON.stringify(r.added||[]))}))})}
+ return n}
+const strip=t=>{const out=[];for(const l of String(t||"").split(/\r?\n/)){if(/^On .+wrote:\s*$/.test(l)||/^-{2,}\s*Original Message/i.test(l)||/^From: /.test(l))break;if(/^\s*>/.test(l))continue;out.push(l)}return out.join("\n")};
+/* fillable Scope of Work for the GC (pdf-lib): Josh types prices into the PDF and replies with it attached */
+const ADD_ROWS=6;
+const pdfSafe=t=>String(t??"").replace(/[→←]/g,"->").replace(/[^\n\x20-\x7E -ÿ–—‘’“”•…]/g,"");
+async function gcPdf(b){const P=window.PDFLib;if(!P){toast("PDF tools didn't load — reload the page");return null}if(!b.address){toast("Add the address first");return null}
+ const rooms=sent(b);if(!rooms.some(r=>r.note.trim()||r.items.length)){toast("Add notes to at least one room first");return null}
+ const doc=await P.PDFDocument.create(),F=await doc.embedFont(P.StandardFonts.Helvetica),FB=await doc.embedFont(P.StandardFonts.HelveticaBold),form=doc.getForm();
+ const W=612,H=792,L=48,R=W-48,ink=P.rgb(.043,.137,.188),mute=P.rgb(.337,.439,.502),pet=P.rgb(.012,.294,.408),pale=P.rgb(.918,.957,.976),line=P.rgb(.78,.83,.86),white=P.rgb(1,1,1);
+ doc.setTitle(`Scope of Work — ${pdfSafe(b.address)}`);doc.setAuthor("1HO Holdings LLC");
+ let pg,y;const pages=[];
+ const T=(t,x,yy,o={})=>pg.drawText(pdfSafe(t),{x,y:yy,size:o.size||10,font:o.bold?FB:F,color:o.color||ink});
+ const wrap=(t,w,size=9.5,font=F)=>{const out=[];for(const para of pdfSafe(t).split("\n")){let cur="";for(const word of para.split(/\s+/)){const tr=cur?cur+" "+word:word;if(font.widthOfTextAtSize(tr,size)>w&&cur){out.push(cur);cur=word}else cur=tr}out.push(cur)}return out};
+ const fld=(name,x,yy,w,h,o={})=>{const f=form.createTextField(name);if(o.multi)f.enableMultiline();if(o.value)f.setText(o.value);f.addToPage(pg,{x,y:yy,width:w,height:h,font:F,textColor:ink,backgroundColor:P.rgb(1,.98,.9),borderColor:P.rgb(.85,.65,.3),borderWidth:.8});f.setFontSize(o.size||10);return f};
+ const newPage=()=>{pg=doc.addPage([W,H]);pages.push(pg);pg.drawRectangle({x:0,y:H-8,width:W,height:8,color:pet});y=H-40};
+ const C=[L,L+24,L+120,R-82,R];
+ const head=()=>{pg.drawRectangle({x:L,y:y-20,width:R-L,height:20,color:pet});[["#",C[0]+8],["Area",C[1]+5],["Scope of work",C[2]+5],["Labor $",C[3]+5]].forEach(([t,x])=>T(t,x,y-14,{bold:true,color:white,size:9.5}));y-=20};
+ const need=h=>{if(y-h<70){newPage();head()}};
+ newPage();
+ T("SCOPE OF WORK",L,H-52,{bold:true,size:20});T("Renovation Scope & Labor Bid",L,H-68,{color:mute});
+ const rt=(t,yy,o)=>{const f=o&&o.bold?FB:F,sz=(o&&o.size)||10;T(t,R-f.widthOfTextAtSize(pdfSafe(t),sz),yy,o)};
+ rt("1HO Holdings LLC",H-52,{bold:true,size:11});rt("Owner / Borrower",H-66,{size:9,color:mute});
+ pg.drawLine({start:{x:L,y:H-82},end:{x:R,y:H-82},thickness:.6,color:line});y=H-100;
+ for(const [k,v] of [["Property",b.address],["Prepared",new Date().toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"})],["Contractor",[settings.gcCompany,settings.gcName].filter(Boolean).join(" — ")],["Bid due",b.dueDate],["Access",b.access]])if(v){T(k,L,y,{bold:true,color:mute,size:9.5});T(v,L+80,y,{size:10});y-=15}
+ y-=6;pg.drawRectangle({x:L,y:y-34,width:R-L,height:34,color:P.rgb(1,.965,.9)});
+ T("HOW TO FILL THIS IN: tap each yellow box and type your labor price. Add anything we missed under Additional.",L+8,y-14,{size:8.5,bold:true});
+ T("Then save the PDF and reply to the email with it attached — your numbers load into our system automatically.",L+8,y-26,{size:8.5});y-=48;
+ head();
+ rooms.forEach((r,k)=>{const desc=[r.note.trim(),r.items.length?"Includes: "+r.items.join(", ")+".":""].filter(Boolean).join("\n")||"Per walkthrough";
+  const ls=wrap(desc,C[3]-C[2]-10),an=wrap(r.name,C[2]-C[1]-10,9.5,FB),h=Math.max(Math.max(ls.length,an.length)*11.5+10,30);need(h);
+  pg.drawRectangle({x:L,y:y-h,width:R-L,height:h,borderColor:line,borderWidth:.6});[C[1],C[2],C[3]].forEach(x=>pg.drawLine({start:{x,y},end:{x,y:y-h},thickness:.6,color:line}));
+  T(String(k+1),C[0]+8,y-14,{size:9.5});an.forEach((l,i)=>T(l,C[1]+5,y-14-i*11.5,{bold:true,size:9.5}));ls.forEach((l,i)=>T(l,C[2]+5,y-14-i*11.5,{size:9.5}));
+  fld("labor|"+r.id,C[3]+4,y-24,C[4]-C[3]-8,18,{value:num(r.labor)?String(num(r.labor)):""});y-=h});
+ need(30);pg.drawRectangle({x:L,y:y-22,width:R-L,height:22,color:pale});T("ADDITIONAL — anything we missed (area, what needs done, labor $)",L+6,y-15,{bold:true,size:9});y-=22;
+ for(let i=0;i<ADD_ROWS;i++){need(24);pg.drawRectangle({x:L,y:y-24,width:R-L,height:24,borderColor:line,borderWidth:.6});
+  fld("addArea|"+i,C[0]+4,y-21,C[2]-C[0]-8,18,{size:9});fld("addDesc|"+i,C[2]+4,y-21,C[3]-C[2]-8,18,{size:9});fld("addLabor|"+i,C[3]+4,y-21,C[4]-C[3]-8,18);y-=24}
+ need(30);pg.drawRectangle({x:L,y:y-26,width:R-L,height:26,color:pale});T("TOTAL LABOR",C[3]-80,y-17,{bold:true,size:11});fld("total",C[3]+4,y-23,C[4]-C[3]-8,20,{size:11});y-=40;
+ if(y<300)newPage();
+ T("Labor only unless noted. Materials are purchased by Owner. Work to be performed in a workmanlike manner per local code; Contractor to pull",L,y,{size:8,color:mute});
+ T("required permits. Any change to this scope requires written approval from Owner before work begins. Payment by draw against completed line items.",L,y-10,{size:8,color:mute});y-=30;
+ const half=(R-L-24)/2,lab=(t,x,yy)=>T(t,x,yy,{size:8,color:mute});
+ lab("Estimated start date",L,y);lab("Estimated completion date",L+half+24,y);fld("start",L,y-24,half,18);fld("completion",L+half+24,y-24,half,18);y-=42;
+ lab("Contractor license #",L,y);lab("Insurance carrier / policy #",L+half+24,y);fld("license",L,y-24,half,18);fld("insurance",L+half+24,y-24,half,18);y-=42;
+ lab("Notes / exclusions",L,y);fld("notes",L,y-48,R-L,42,{multi:true,size:9});y-=64;
+ T("OWNER",L,y,{bold:true});T("CONTRACTOR",L+half+24,y,{bold:true});y-=30;
+ pg.drawLine({start:{x:L,y},end:{x:L+half,y},thickness:.6,color:mute});lab("1HO Holdings LLC"+(settings.myName?" — "+settings.myName:"")+" · Signature / Date",L,y-11);
+ fld("contractorName",L+half+24,y+2,half,16,{value:settings.gcCompany||settings.gcName||""});lab("Contractor name · Signature / Date",L+half+24,y-11);
+ form.updateFieldAppearances(F);try{form.acroForm.dict.set(P.PDFName.of("NeedAppearances"),P.PDFBool.True)}catch{}
+ pages.forEach((p,i)=>{p.drawText(pdfSafe(`${b.address}  ·  Scope of Work  ·  ${b.id}`),{x:L,y:30,size:8,font:F,color:mute});const t=`Page ${i+1} of ${pages.length}`;p.drawText(t,{x:R-F.widthOfTextAtSize(t,8),y:30,size:8,font:F,color:mute})});
+ return doc.save()}
+const b64of=bytes=>{let bin="";for(let i=0;i<bytes.length;i+=8192)bin+=String.fromCharCode(...bytes.subarray(i,i+8192));return btoa(bin)};
+async function readBidPdf(bytes){const P=window.PDFLib;const doc=await P.PDFDocument.load(bytes,{ignoreEncryption:true});const out={labor:{},add:[],extra:{}};
+ for(const f of doc.getForm().getFields()){const n=f.getName();let v="";try{v=(f.getText&&f.getText())||""}catch{}v=String(v).trim();if(!v)continue;
+  const [k,id]=n.split("|");if(k==="labor")out.labor[id]=v;else if(k==="addArea"||k==="addDesc"||k==="addLabor"){const a=out.add[+id]=out.add[+id]||{};a[k]=v}else out.extra[k]=v}
+ out.add=out.add.filter(a=>a&&(a.addDesc||a.addLabor));return out}
+function applyBidPdf(b,data,via){let n=0;
+ for(const [id,v] of Object.entries(data.labor)){const r=b.rooms.find(x=>x.id===id);if(r&&num(v)){r.labor=String(num(v));n++}}
+ for(const a of data.add){let r=a.addArea&&b.rooms.find(x=>x.name.toLowerCase()===a.addArea.trim().toLowerCase());if(!r){r=b.rooms.find(x=>x.name==="Added by GC");if(!r){r=room(b,"Other");r.name="Added by GC";b.rooms.push(r)}}
+  r.added=r.added||[];const item=(r.name==="Added by GC"&&a.addArea?a.addArea.trim()+": ":"")+(a.addDesc||"Additional work").trim();const ex=r.added.find(x=>x.item===item);if(ex)ex.labor=num(a.addLabor)?String(num(a.addLabor)):"";else r.added.push({item,labor:num(a.addLabor)?String(num(a.addLabor)):""});n++}
+ const e=data.extra;if(e.notes)b.gcNotes=e.notes;if(e.start)b.gcStart=e.start;if(e.completion)b.gcEnd=e.completion;if(e.license)b.gcLicense=e.license;if(e.insurance)b.gcInsurance=e.insurance;
+ if(n){b.status="in";b.bidAt=today();const raw=Object.entries(data.labor).map(([id,v])=>`${(b.rooms.find(x=>x.id===id)||{}).name||id}: ${v}`).concat(data.add.map(a=>`+ ${a.addArea||""} ${a.addDesc||""}: ${a.addLabor||""}`),Object.entries(e).map(([k,v])=>`${k}: ${v}`)).join("\n");
+  (b.responses=b.responses||[]).push({at:new Date().toLocaleString(),via,raw:"Filled-in PDF\n"+raw,total:total(b),gcTotal:e.total||"",rooms:b.rooms.map(r=>({id:r.id,name:r.name,labor:r.labor,added:JSON.parse(JSON.stringify(r.added||[]))}))})}
+ return n}
+function blobFrom(res){const dec=d=>Uint8Array.from(atob(d.replace(/-/g,"+").replace(/_/g,"/")),x=>x.charCodeAt(0));
+ for(const c of ((res&&res.content)||[])){const d=(c.resource&&(c.resource.blob||c.resource.data))||c.blob||c.data;if(typeof d==="string"&&d.length>100)return dec(d)}
+ const p=res&&res.payload;const d=p&&(p.data||p.content||p.blob);if(typeof d==="string"&&d.length>100)return dec(d);return null}
+async function checkMail(b){const st=$("#mailStatus");st.textContent="Checking for replies…";
+ try{if(window.BDreload)await window.BDreload();const res=await window.BDcall("replies",{id:b.id,threadId:b.threadId||""});
+  const seen=new Set((b.responses||[]).map(x=>x.msgId).filter(Boolean));let got=0;
+  for(const m of res.messages||[]){if(seen.has(m.id))continue;let done=false;
+   for(const pd of m.pdfs||[]){try{const bytes=Uint8Array.from(atob(pd.data),c=>c.charCodeAt(0));const data=await readBidPdf(bytes);if(applyBidPdf(b,data,"PDF by email")){b.responses[b.responses.length-1].msgId=m.id;got++;done=true;break}}catch(z){console.warn(z)}}
+   if(done)continue;const body=strip(m.plaintextBody||"");const n=applyReply(b,body,"email");if(n){b.responses[b.responses.length-1].msgId=m.id;got++}}
+  if(got){save(b);renderList();render();toast(`${got} new repl${got===1?"y":"ies"} logged`)}else st.textContent=`Nothing new from ${settings.gcName||"the GC"} yet. Bids sent from the form load in by themselves.`}
+ catch(x){st.textContent="Couldn't check: "+(x&&x.message||"server unreachable")}}
+/* bids submitted from the GC form land in bid.inbox — load them in */
+function processInbox(b){let n=0;for(const it of b.inbox||[]){if(it.done)continue;const f=it.form||{};
+  const data={labor:f.labor||{},add:(f.add||[]).map(a=>({addArea:a.area||"",addDesc:a.desc||"",addLabor:a.labor||""})),extra:{}};
+  ["notes","start","total","name","days"].forEach(k=>{if(f[k])data.extra[k]=String(f[k])});if(f.days)b.gcDays=String(f.days);
+  applyBidPdf(b,data,"bid form");if(b.responses&&b.responses.length)b.responses[b.responses.length-1].at=new Date(it.at).toLocaleString();it.done=true;n++}
+ if(n){save(b);toast(`New bid in for ${b.address||b.id}`)}return n}
+/* line-by-line scope */
+const cap=t=>t.charAt(0).toUpperCase()+t.slice(1);
+function splitNote(t){return String(t||"").split(/\n|;|\.(?=\s|$)|,(?![^(]*\))/).map(x=>x.replace(/\s+/g," ").trim()).filter(x=>x.length>2).map(cap)}
+function buildSow(b){const rooms=(b.rooms||[]).filter(r=>r.note.trim()||r.items.length||(r.added||[]).length||num(r.labor));
+ b.sow={at:new Date().toLocaleString(),rooms:rooms.map(r=>{const lines=splitNote(r.note).map(d=>({d,c:""}));const norm=x=>x.toLowerCase().replace(/[^a-z]/g,""),low=norm(lines.map(l=>l.d).join(" "));
+  for(const it of r.items)if(!low.includes(norm(it.split(/[ /]/)[0]))&&!low.includes(norm(it)))lines.push({d:it,c:""});
+  for(const a of r.added||[])lines.push({d:cap(a.item)+" (contractor addition)",c:a.labor||""});
+  if(!lines.length)lines.push({d:"Per walkthrough",c:""});
+  return{id:r.id,name:r.name,price:String(roomSum(r)||""),lines}})}}
+function sowHTML(b){if(!b.sow)return`<p class="note">Turns each room's notes and checklist into numbered line items (1.1, 1.2…) with ${esc(settings.gcName||"the GC")}'s price as each room's subtotal. You can edit any line, add lines, and split costs per line before downloading.</p><button class="pri" id="buildSow">Build line-by-line Scope of Work</button>`;
+ let gt=0;const rooms=b.sow.rooms.map((r,k)=>{gt+=num(r.price);const alloc=r.lines.reduce((t,l)=>t+num(l.c),0),p=num(r.price);
+  return`<div class="sroom"><div class="sh"><b>${k+1}. ${esc(r.name)}</b><span><label class="note" for="sp${k}">Subtotal</label><input id="sp${k}" class="sp" data-s="${k}" data-sk="price" value="${esc(r.price)}" inputmode="decimal" placeholder="$"></span></div>
+  ${r.lines.map((l,m)=>`<div class="sl"><span class="ln">${k+1}.${m+1}</span><input data-s="${k}" data-l="${m}" data-lk="d" value="${esc(l.d)}" aria-label="Line ${k+1}.${m+1}"><input class="sc" data-s="${k}" data-l="${m}" data-lk="c" value="${esc(l.c)}" inputmode="decimal" placeholder="$ opt." aria-label="Cost"><button class="x2" data-sdel="${k}:${m}" aria-label="Remove line">✕</button></div>`).join("")}
+  <div class="sf"><button class="linkish" data-sadd="${k}">+ Add line</button><span class="note" id="sa${k}">${alloc?(Math.round(alloc)===Math.round(p)?"Lines match subtotal ✓":`Lines add to ${money(alloc)} — subtotal ${money(p)}`):""}</span></div></div>`}).join("");
+ const mr=(b.rooms||[]).filter(r=>(r.mats||[]).some(m=>m.d.trim()));
+ const mats=mr.length?mr.map(r=>`<div class="sroom"><div class="sh"><b>${esc(r.name)}</b><b>${money(matTotal(r))}</b></div>${r.mats.filter(m=>m.d.trim()).map(m=>`<div class="mline"><span>${esc(m.d)}</span><span>${esc(m.q||"?")} ${esc(m.u||"")}</span><span class="num">${matSum(m)?money(matSum(m)):"—"}</span></div>`).join("")}</div>`).join(""):`<p class="note">No materials yet — add them in each room under "Materials to buy".</p>`;
+ return`<p class="note">Built ${esc(b.sow.at)} from the rooms and ${esc(settings.gcName||"the GC")}'s latest numbers. Edits save automatically.</p>
+  <h4 class="sec">Labor</h4>${rooms}
+  <div class="total" style="margin-top:12px"><span>Labor total</span><span id="sowTot">${money(gt)}</span></div>
+  <h4 class="sec">Materials</h4><p class="note">Live from each room's "Materials to buy" list.</p>${mats}
+  <div class="total" style="margin-top:12px;background:#37ADDB;color:#04293a"><span>Materials total</span><span>${money(matsAll(b))}</span></div>
+  <div class="total" style="margin-top:8px"><span>Project total</span><span id="sowAll">${money(gt+matsAll(b))}</span></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="pri big" id="sowPdf" style="flex:1 1 240px">Download line-item Scope of Work PDF</button><button id="rebuildSow" style="flex:1 1 160px">Rebuild from rooms</button></div>`}
+function syncLabor(b,src){ed.querySelectorAll('[data-rk="labor"]').forEach(el=>{if(el!==src)el.value=b.rooms[+el.dataset.r].labor??""});
+ const T=money(total(b));[["#tot",T],["#respTot",T],["#respHead",T],["#atot",money(total(b)+matsAll(b))]].forEach(([q,v])=>{const el=$(q);if(el)el.textContent=v})}
+async function gcLink(b){const u=(settings.pageUrl||"").trim()||new URL("gc-bid.html",location.href).href;if(!/^https:\/\//.test(u))return"";
+ if(!b.bidKey){b.bidKey=Array.from(crypto.getRandomValues(new Uint8Array(12)),x=>x.toString(16).padStart(2,"0")).join("");save(b)}
+ const p={id:b.id,a:b.address||"",du:b.dueDate||"",ac:b.access||"",gc:settings.gcName||"",who:["1HO Holdings LLC",settings.myName].filter(Boolean).join(" — "),r:sent(b).map(r=>[r.name,r.note.trim(),r.items,r.id])};
+ if(settings.myEmail)p.to=settings.myEmail;if(settings.myPhone)p.sms=settings.myPhone;if(window.BD&&window.BD.api){p.api=window.BD.api;p.k=b.bidKey}
+ const bytes=new TextEncoder().encode(JSON.stringify(p));let out=bytes,t="j";
+ if(window.CompressionStream){try{out=new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new CompressionStream("deflate-raw"))).arrayBuffer());t="z"}catch{out=bytes;t="j"}}
+ return u.split("#")[0]+"#"+t+b64of(out).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"")}
+/* the email itself: scope by area + a one-tap "reply with your prices" button */
+function bidEmail(b,link,g){const rooms=sent(b),to=settings.myEmail||"",subj=`Re: Scope of Work — ${b.address} [${b.id}]`;
+ const tpl=[`LABOR BID ${b.id} — ${b.address}`,"Type your price after each $ and hit Send:",""].concat(rooms.map((r,i)=>`${i+1}. ${r.name} - $`),["","Anything I missed (fill in or delete):","+ Area: what needs done - $","+ Area: what needs done - $","","Timeline (working days): ","Notes: "]).join("\n");
+ const mailto=to?"mailto:"+encodeURIComponent(to)+"?subject="+encodeURIComponent(subj)+"&body="+encodeURIComponent(tpl):"";
+ const H=t=>esc(t).replace(/\n/g,"<br>");
+ const rows=rooms.map((r,i)=>`<tr><td style="padding:10px 8px;border-bottom:1px solid #d8e2e8;vertical-align:top;font-weight:700;color:#567080;width:24px">${i+1}</td><td style="padding:10px 8px;border-bottom:1px solid #d8e2e8;vertical-align:top"><div style="font-weight:700;color:#034B68;font-size:16px">${esc(r.name)}</div>${r.note.trim()?`<div style="margin-top:4px">${H(r.note.trim())}</div>`:""}${r.items.length?`<div style="margin-top:4px;color:#567080;font-size:13px">Includes: ${esc(r.items.join(", "))}</div>`:""}</td><td style="padding:10px 8px;border-bottom:1px solid #d8e2e8;vertical-align:top;white-space:nowrap;color:#567080">Labor: $______</td></tr>`).join("");
+ const btn=mailto?`${link?`<p style="margin:18px 0 6px"><a href="${esc(link)}" style="display:inline-block;background:#0f7a4b;color:#ffffff;font-weight:700;font-size:17px;text-decoration:none;padding:14px 22px;border-radius:10px">Enter your labor prices</a></p><p style="color:#567080;font-size:13px;margin:0 0 14px">Opens a form with each area below — type your labor per room, add anything we missed, tap Finish &amp; send. Your bid comes straight to us.</p><p style="font-size:13px;margin:0 0 14px"><a href="${esc(mailto)}" style="color:#034B68">Or reply by email instead</a></p>`:`<p style="margin:18px 0"><a href="${esc(mailto)}" style="display:inline-block;background:#0f7a4b;color:#ffffff;font-weight:700;font-size:17px;text-decoration:none;padding:14px 22px;border-radius:10px">Tap here to reply with your prices</a></p><p style="color:#567080;font-size:13px;margin:0 0 14px">It opens a reply with every area listed — just type your price after each $ and hit Send.</p>`}`:"";
+ const html=`<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.45;color:#0b2330;max-width:640px">
+ <p>${esc(g)},</p><p>Here's the Scope of Work for <b>${esc(b.address)}</b>${b.dueDate?` — need your labor bid by <b>${esc(b.dueDate)}</b>`:""}.${b.access?` Access: ${esc(b.access)}.`:""}</p>${btn}
+ <table style="border-collapse:collapse;width:100%;border-top:3px solid #034B68">${rows}</table>
+ <p style="margin-top:16px">Missed anything? Add it in your reply like <b>+ Kitchen: replace window - $300</b>.</p>
+ ${!mailto?`<p>Reply with your price for each numbered area, like <b>1 - $1,200</b>.</p>`:""}
+ 
+ <p style="color:#567080;font-size:13px">The same scope is attached as a PDF for your records.</p><p>Thanks,<br>${esc(settings.myName||"")}<br>1HO Holdings LLC</p></div>`;
+ const text=`${g},\n\nHere's the Scope of Work for ${b.address}${b.dueDate?" — need your labor bid by "+b.dueDate:""}.\n\n`+rooms.map((r,i)=>`${i+1}. ${r.name.toUpperCase()}\n${r.note.trim()}${r.items.length?"\nIncludes: "+r.items.join(", "):""}\nLabor: $______`).join("\n\n")+`\n\nJust reply with your price for each numbered area, like:\n1 - $1,200\n2 - $6,500\n\nMissed anything? Add it like:\n+ Kitchen: replace window - $300\n\nThanks,\n${settings.myName||""}\n1HO Holdings LLC`;
+ return{html,text}}
+function markSent(b){if(b.status!=="in"){b.status="sent";b.sentAt=today();save(b);renderList()}}
+
+/* events */
+$("#newBtn").addEventListener("click",()=>{const b={id:"BR-"+today().slice(2).replace(/-/g,"")+"-"+rid().slice(0,3).toUpperCase(),status:"draft",rooms:[],created:today()};
+ for(const t of START)b.rooms.push(room(b,t));bids.push(b);sel=b.id;save(b);renderList();render();$("#f-address").focus()});
+$("#list").addEventListener("click",e=>{const j=e.target.closest("[data-id]");if(j){sel=j.dataset.id;renderList();render();if(innerWidth<860)$("#editor").scrollIntoView({behavior:"smooth"})}});
+const ed=$("#editor"),cur=()=>bids.find(x=>x.id===sel);
+ed.addEventListener("input",e=>{const b=cur();if(!b)return;const t=e.target,d=t.dataset;
+ if(d.ai){const [ri,ai]=d.ai.split(":");b.rooms[+ri].added[+ai].labor=t.value;save(b);syncLabor(b,t);return}
+ if(d.mk){const r=b.rooms[+d.m],m=r.mats[+d.mi];m[d.mk]=t.value;save(b);const l=$(`#ml${d.m}-${d.mi}`);if(l)l.textContent=matSum(m)?money(matSum(m)):"";const mt=$("#mt"+d.m);if(mt)mt.textContent=matTotal(r)?money(matTotal(r)):"";
+  $("#mtot").textContent=money(matsAll(b));$("#atot").textContent=money(total(b)+matsAll(b));return}
+ if(d.lk||d.sk){const r=b.sow.rooms[+d.s];if(d.sk)r.price=t.value;else r.lines[+d.l][d.lk]=t.value;save(b);
+  const alloc=r.lines.reduce((x,l)=>x+num(l.c),0),p=num(r.price),el=$("#sa"+d.s);if(el)el.textContent=alloc?(Math.round(alloc)===Math.round(p)?"Lines match subtotal ✓":`Lines add to ${money(alloc)} — subtotal ${money(p)}`):"";
+  const lt=b.sow.rooms.reduce((x,r)=>x+num(r.price),0),st=$("#sowTot");if(st)st.textContent=money(lt);const sa=$("#sowAll");if(sa)sa.textContent=money(lt+matsAll(b));return}
+ if(d.k){b[d.k]=t.value;save(b);if(d.k==="address"){renderList();ed.querySelector("h2").textContent=t.value||"New property"}}
+ else if(d.rk){b.rooms[+d.r][d.rk]=t.value;save(b);if(d.rk==="labor")syncLabor(b,t)}});
+ed.addEventListener("change",async e=>{if(e.target.id!=="pdfIn")return;const b=cur();const f=e.target.files&&e.target.files[0];if(!b||!f)return;
+ try{const data=await readBidPdf(new Uint8Array(await f.arrayBuffer()));const n=applyBidPdf(b,data,"filled PDF (uploaded)");if(n){save(b);renderList();render();toast(`Logged ${n} price${n===1?"":"s"} from the PDF`)}else toast("No prices found in that PDF — is it the filled-in one?")}catch(z){toast("Couldn't read that PDF")}});
+ed.addEventListener("click",async e=>{const b=cur();if(!b)return;const t=e.target.closest("button,a");if(!t)return;const d=t.dataset;
+ if(d.chip!==undefined){const r=b.rooms[+d.r],i=r.items.indexOf(d.chip);i>=0?r.items.splice(i,1):r.items.push(d.chip);save(b);render();return}
+ if(d.adel){const [ri,k]=d.adel.split(":");b.rooms[+ri].added.splice(+k,1);save(b);render();return}
+ if(d.check){openCheck.has(d.check)?openCheck.delete(d.check):openCheck.add(d.check);render();return}
+ if(d.add){b.rooms.push(room(b,d.add));save(b);render();return}
+ if(d.rdel!==undefined){if(d.sure){b.rooms.splice(+d.rdel,1);save(b);render()}else{d.sure=1;t.textContent="Remove?"}return}
+ if(t.id==="del"){if(d.sure){bids=bids.filter(x=>x.id!==b.id);sel=null;db&&db.doc("bids/"+b.id).delete().catch(()=>{});renderList();render()}else{d.sure=1;t.textContent="Tap again to delete"}return}
+ if(t.id==="pdf"){const bytes=await gcPdf(b);if(!bytes)return;if(!dl){toast("Downloads aren't available in this view");return}try{await dl.save({filename:pdfName(b),data:new Blob([bytes],{type:"application/pdf"})});toast("PDF saved")}catch(x){if(x&&x.code!=="declined")toast("Couldn't save the PDF here")}return}
+ if(t.id==="emailGc"){if(t.disabled)return;if(!settings.gcEmail){toast("Type "+(settings.gcName||"the GC")+"'s email in the box above first");$("#sendTo")?.focus();return}const st=$("#sendStatus");
+  if(!mcp){st.textContent="Sending from here needs the page open on claude.ai with Gmail connected. Use Download PDF instead.";return}
+  if(!t.dataset.sure){t.dataset.sure=1;t.textContent=`Send to ${settings.gcEmail}?`;return}
+  t.disabled=true;t.textContent="Sending…";
+  const bytes=await gcPdf(b);if(!bytes){t.disabled=false;t.textContent="Try again";delete t.dataset.sure;return}
+  const b64=b64of(bytes),g=(settings.gcName||"").split(" ")[0]||"Hi";
+  const link=await gcLink(b),mail=bidEmail(b,link,g);
+  const body=mail.text,htmlBody=mail.html;
+  try{const res=await mcp.callTool("Gmail","send_message",{to:[settings.gcEmail],subject:`Scope of Work — ${b.address} [${b.id}]`,body,htmlBody,attachments:[{content:b64,filename:pdfName(b),mimeType:"application/pdf"}]});const tid=res&&res.payload&&res.payload.threadId;if(tid)b.threadId=tid;
+   b.emailedAt=new Date().toLocaleString();(b.sends=b.sends||[]).push({at:b.emailedAt,how:"emailed",to:settings.gcEmail});markSent(b);save(b);render();toast("Scope of Work emailed")}
+  catch(x){t.disabled=false;t.textContent="Try again";delete t.dataset.sure;const c=x&&x.code;
+   st.textContent=c==="server_not_connected"?"Connect Gmail in claude.ai Settings → Connectors, then try again.":c==="needs_reauth"?"Reconnect Gmail in claude.ai Settings → Connectors, then try again.":c==="approval_required"||c==="not_in_manifest"?"Sending needs your OK — allow Gmail for this page when claude.ai asks.":c==="server_unavailable"||c==="upstream_error"?"Gmail didn't confirm — check your Sent folder before trying again.":"Couldn't send: "+(x&&x.message||"unknown error")}
+  return}
+ if(t.id==="copy"){const lk=await gcLink(b);const m=lk?`${(settings.gcName||"").split(" ")[0]||"Hey"} — need a labor bid on ${b.address}${b.dueDate?" by "+b.dueDate:""}. Tap this, put your price on each area, add anything I missed, and hit Send:\n${lk}`:message(b);(b.sends=b.sends||[]).push({at:new Date().toLocaleString(),how:"copied to text"});b.status=b.status==="in"?"in":"sent";b.sentAt=today();save(b);render();renderList();try{await navigator.clipboard.writeText(m);toast("Copied — paste it into a text")}catch{ed.insertAdjacentHTML("beforeend",`<pre>${esc(m)}</pre>`)}return}
+ if(t.id==="parse"){const txt=$("#paste").value;const n=applyReply(b,txt,"text");if(n){$("#paste").value="";save(b);renderList();render();toast(`Logged ${n} price${n===1?"":"s"}`)}else toast("Couldn't find room numbers in that text");return}
+ if(t.id==="checkMail"){await checkMail(b);return}
+ if(t.id==="formLink"&&t.getAttribute("href")==="#"){e.preventDefault();toast("Still building the link — tap again");return}
+ if(t.id==="copyForm"){const l=await gcLink(b);if(!l)return;try{await navigator.clipboard.writeText(l);toast("Bid form link copied")}catch{ed.insertAdjacentHTML("beforeend",`<pre>${esc(l)}</pre>`)}return}
+ if(d.madd!==undefined){const r=b.rooms[+d.madd];(r.mats=r.mats||[]).push({d:"",q:"",u:"ea",c:""});save(b);render();const ins=ed.querySelectorAll(`[data-m="${d.madd}"][data-mk="d"]`);ins[ins.length-1]?.focus();return}
+ if(d.msug!==undefined){const n=suggestMats(b.rooms[+d.msug]);save(b);render();toast(n?`Added ${n} material${n===1?"":"s"} — fill in qty and price`:"Nothing new to suggest from this room");return}
+ if(d.mdel){const [i,k]=d.mdel.split(":");b.rooms[+i].mats.splice(+k,1);save(b);render();return}
+ if(t.id==="shopCsv"){const rows=[["Room","Item","Qty","Unit","Cost each","Total"]];for(const r of b.rooms)for(const m of r.mats||[])if(m.d.trim())rows.push([r.name,m.d,m.q,m.u,m.c,matSum(m)?matSum(m).toFixed(2):""]);
+  if(rows.length<2){toast("Add materials to a room first");return}rows.push(["","","","","Total",matsAll(b).toFixed(2)]);
+  const csv=rows.map(r=>r.map(c=>`"${String(c??"").replace(/"/g,'""')}"`).join(",")).join("\n");
+  if(!dl){toast("Downloads aren't available in this view");return}try{await dl.save({filename:pdfName(b).replace("Scope-of-Work","Materials").replace(".pdf",".csv"),data:csv});toast("Shopping list saved")}catch(z){if(z&&z.code!=="declined")toast("Couldn't save here")}return}
+ if(t.id==="buildSow"){buildSow(b);save(b);render();$("#sow").scrollIntoView({behavior:"smooth"});return}
+ if(t.id==="rebuildSow"){if(d.sure){buildSow(b);save(b);render();toast("Rebuilt from rooms")}else{d.sure=1;t.textContent="Tap again — replaces your line edits"}return}
+ if(t.id==="sowPdf"){const x=sow(b,true);if(!x)return;if(!dl){toast("Downloads aren't available in this view");return}try{await dl.save({filename:pdfName(b).replace("Scope-of-Work","Scope-of-Work-Line-Items"),data:x.output("blob")});toast("PDF saved")}catch(z){if(z&&z.code!=="declined")toast("Couldn't save the PDF here")}return}
+ if(d.sadd!==undefined){b.sow.rooms[+d.sadd].lines.push({d:"",c:""});save(b);render();const ins=ed.querySelectorAll(`[data-s="${d.sadd}"][data-lk="d"]`);ins[ins.length-1]?.focus();return}
+ if(d.sdel){const [k,m]=d.sdel.split(":");b.sow.rooms[+k].lines.splice(+m,1);save(b);render();return}
+ if(d.useResp!==undefined){const r=b.responses[+d.useResp];for(const x of b.rooms){const v=r.rooms.find(y=>y.id===x.id);x.labor=v?v.labor:"";x.added=v?JSON.parse(JSON.stringify(v.added||[])):[]}save(b);render();toast("Using that bid");return}});
+document.getElementById("bdOut").onclick=()=>window.BD.signOut();
+const portalUrl=()=>((settings.pageUrl||"").trim()||new URL("gc-bid.html",location.href).href).split("#")[0];
+document.getElementById("gcPortalUrl").textContent=portalUrl();
+document.getElementById("copyPortal").onclick=async()=>{try{await navigator.clipboard.writeText(portalUrl());toast("Contractor portal link copied")}catch{toast(portalUrl())}};
+document.getElementById("impFile").addEventListener("change",async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;
+ try{const data=JSON.parse(await f.text());const list=Array.isArray(data)?data:(data.bids||[]);let n=0;
+  for(const b of list){if(!b||!b.id)continue;if(bids.some(x=>x.id===b.id)&&!confirmImport(b))continue;await window.BDcall("saveBid",{bid:fix(b)});n++}
+  if(data.settings&&!settings.gcEmail){await window.BDcall("saveSettings",{settings:{...data.settings,...settings}})}
+  await window.BDreload();toast(`Imported ${n} propert${n===1?"y":"ies"}`)}catch(z){toast("Couldn't read that file")}e.target.value=""});
+function confirmImport(b){return false}
+document.querySelectorAll("#setup [data-set], aside [data-set], .panel:first-child [data-set]").forEach(el=>el.addEventListener("input",()=>{settings[el.dataset.set]=el.value.trim();saveSettings();render()}));
+ed.addEventListener("input",e=>{const t=e.target;if(t.id==="sendTo"){settings.gcEmail=t.value.trim();saveSettings();const o=document.getElementById("s-gcEmail");if(o)o.value=settings.gcEmail}});
+
+/* boot */
+renderList();
+let mcp=null,dl=null;
+(async()=>{try{dl=await window.claude?.use("downloads")}catch{}try{mcp=await window.claude?.use("mcp")}catch{}})();
+(async()=>{try{db=await window.claude?.use("db")}catch{}
+ if(!db){$("#list").innerHTML='<p class="empty">Sign in to load your properties.</p>';return}
+ const timer=setTimeout(()=>{if(!bids.length)$("#list").innerHTML='<p class="empty">Can\'t reach saved bids yet — still trying.</p>'},10000);
+ db.doc("settings/main").onSnapshot(s=>{if(s.exists)settings={...settings,...s.data()};document.querySelectorAll("[data-set]").forEach(el=>{if(document.activeElement!==el)el.value=settings[el.dataset.set]||""});const a=document.activeElement;if(!(a&&ed.contains(a)))render()},()=>{});
+ db.collection("bids").onSnapshot(s=>{if(!s.metadata.fromCache)clearTimeout(timer);const local=new Map(bids.map(b=>[b.id,b]));
+  bids=s.docs.map(d=>{const b=JSON.parse(JSON.stringify(d.data()));if(q[b.id]&&local.has(b.id)){const l=local.get(b.id),have=new Set((l.inbox||[]).map(x=>x.sid));for(const it of b.inbox||[])if(!have.has(it.sid))(l.inbox=l.inbox||[]).push(it);return l}return fix(b)});
+  let newBids=0;for(const b of bids)newBids+=processInbox(b);
+  for(const b of local.values())if(!bids.some(x=>x.id===b.id)&&q[b.id])bids.push(b);
+  renderList();const a=document.activeElement;if(newBids||!(a&&ed.contains(a)&&/INPUT|TEXTAREA/.test(a.tagName)))render()},
+  ()=>{clearTimeout(timer);$("#list").innerHTML='<p class="empty">Saved bids couldn\'t load here.</p>'})})();
+}
+</script>
+</body>
+</html>
