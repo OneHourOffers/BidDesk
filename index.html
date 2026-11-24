@@ -203,7 +203,7 @@ const CHECK={
  "Demo":[["Demo",["Drywall demo","Plaster demo","Drop ceiling removal","Flooring tear-out","Carpet removal","Cabinet & counter removal","Bathroom demo","Tub / shower removal","Wall removal","Haul-off of demo debris"]]],
  "Whole house":[["Whole house",["Demo / trash-out","Dumpster","Permits","Point-of-sale violations","Lead paint","Asbestos","Mold","Pest / termite","Smoke & CO throughout","Rekey all locks","Paint throughout","Flooring throughout","Doors & hardware throughout","Final clean"]]]};
 CHECK["Attic"]=CHECK["Roof & attic"];
-const START=["Exterior","Clean out","Demo","Plumbing","Electrical","Kitchen","Living room","Bedroom","Bathroom"];
+const START=["Exterior","Garage","Clean out","Demo","Plumbing","Electrical","Mechanicals","Basement","Kitchen","Living room","Bedroom","Bathroom"];
 const ADD=["Bedroom","Bathroom","Half bath","Basement","Dining room","Family room","Hallway / stairs","Laundry","Garage","Roof & attic","Structure / foundation","Mechanicals","Whole house","Exterior","Clean out","Demo","Plumbing","Electrical","Kitchen","Living room","Other"];
 const $=s=>document.querySelector(s);
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -222,7 +222,7 @@ function room(b,type){return{id:rid(),type,name:nameFor(b,type),note:"",items:[]
 /* project phases come first, in this order; rooms follow in the order you entered them */
 const PHASES=["Clean out","Demo","Plumbing","Electrical"];
 const phaseOf=t=>{const k=String(t||"").toLowerCase().replace(/[^a-z]/g,"");return PHASES.findIndex(p=>{const q=p.toLowerCase().replace(/[^a-z]/g,"");return k===q||k===q+"s"||(q==="demo"&&k==="demolition")||(q==="cleanout"&&(k==="trashout"||k==="cleanup"))})};
-const ORDER=["Exterior","Clean out","Demo","Plumbing","Electrical","Kitchen","Living room","Bedroom","Bathroom","Half bath"];
+const ORDER=["Exterior","Garage","Clean out","Demo","Plumbing","Electrical","Mechanicals","Basement","Kitchen","Living room","Bedroom","Bathroom","Half bath"];
 const rankOf=r=>{const t=String(r.type||"");let i=ORDER.indexOf(t);if(i<0){const p=phaseOf(r.type)>=0?phaseOf(r.type):phaseOf(r.name);if(p>=0)i=ORDER.indexOf(PHASES[p])}
  if(i<0){const nm=String(r.name||"").toLowerCase();i=ORDER.findIndex(o=>nm===o.toLowerCase()||nm.startsWith(o.toLowerCase()+" "))}return i<0?100:i};
 const numOf=r=>parseInt((String(r.name||"").match(/(\d+)\s*$/)||[])[1])||0;
