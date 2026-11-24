@@ -79,6 +79,7 @@ label{display:block;font-size:13px;color:var(--mute);font-weight:700;margin-bott
 .home{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}@media(max-width:600px){.home{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .tk{margin-top:14px;border-top:1px dashed var(--line);padding-top:10px}.tkrow{display:grid;grid-template-columns:minmax(0,1fr) 70px 48px 80px 80px;gap:6px;align-items:center;padding:3px 0;font-size:14px}.tkrow input{min-height:34px;font-size:14px;padding:4px 6px;text-align:right}.tkrow span:last-child{text-align:right;font-weight:700}.tkhead{font-size:12px;color:var(--mute);font-weight:700}
 @media(max-width:600px){.tkrow{grid-template-columns:minmax(0,1fr) 56px 40px 64px 66px;font-size:13px}}
+#pkgSel{width:100%;min-height:44px;font-weight:700}#pkgSel.pick{border:2px solid var(--sky);background:#eaf4f9}
 .pkgrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.pkgrow select{flex:1 1 200px;min-height:42px}
 .fins{display:grid;gap:8px;margin-top:10px}.fin{display:flex;gap:6px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:8px}.fg{flex:1;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px}.fg input,.fg select{min-height:38px;font-size:14px}.fg label{font-size:12px}
 .grp{font-size:12px;font-weight:700;color:var(--mute);margin-top:10px}
@@ -257,8 +258,7 @@ function syncPkg(b){const k=b.package,P=pkgs();if(!k||!P[k])return;settings.pack
  clearTimeout(syncPkg.t);syncPkg.t=setTimeout(()=>toast(`${P[k].name} updated`),900)}
 function finHTML(b){const fs=b.finishes||[],P=pkgs();
  return`<div class="step" id="finishes"><h3>Finishes</h3><p class="note">What goes in this house — product, color/type and a link. ${esc(settings.gcName||"The GC")} sees these with the scope.${b.package&&P[b.package]?` <b>Changes here update the ${esc(P[b.package].name)} for future houses.</b>`:""}</p>
- <div class="pkgrow"><label for="pkgSel">Package</label><select id="pkgSel"><option value="">Custom (no package)</option>${Object.entries(P).map(([k,v])=>`<option value="${esc(k)}" ${b.package===k?"selected":""}>${esc(v.name)}</option>`).join("")}</select>
-  <button id="pkgApply">Apply package</button><button id="pkgSave" class="ghost">Save these finishes as…</button></div>
+ <div class="pkgrow"><span class="note" style="flex:1 1 220px;margin:0">Package: <b>${b.package&&P[b.package]?esc(P[b.package].name):"Custom"}</b> — change it at the top.</span><button id="pkgSave" class="ghost">Save these finishes as…</button></div>
  ${fs.length?`<div class="fins">${fs.map((f,k)=>`<div class="fin"><div class="fg"><div><label>Item</label><select data-fi="${k}" data-ff="cat">${FIN_CATS.concat(FIN_CATS.includes(f.cat)?[]:[f.cat]).map(c=>`<option ${c===f.cat?"selected":""}>${esc(c)}</option>`).join("")}</select></div>
   <div><label>Product / brand</label><input data-fi="${k}" data-ff="product" value="${esc(f.product)}" placeholder="e.g. TrafficMaster Hickman Coast"></div>
   <div><label>Color / type</label><input data-fi="${k}" data-ff="color" value="${esc(f.color)}" placeholder="e.g. French Silver, satin"></div>
@@ -403,6 +403,7 @@ function render(){const b=bids.find(x=>x.id===sel),ed=$("#editor");if(!b){ed.inn
  <div class="top"><div><label for="f-address">Address</label><input id="f-address" data-k="address" placeholder="1234 E 99th St, Cleveland, OH 44104"></div>
   <div><label for="f-dueDate">Need bid by</label><input id="f-dueDate" data-k="dueDate" type="date"></div>
   <div style="grid-column:1/-1"><label for="f-access">Access / notes for ${g}</label><input id="f-access" data-k="access" placeholder="Lockbox 1234, vacant"></div>
+  <div style="grid-column:1/-1"><label for="pkgSel">Finish package</label><select id="pkgSel" class="${b.package===undefined&&!(b.finishes||[]).length?"pick":""}">${b.package===undefined&&!(b.finishes||[]).length?`<option value="" selected>— Pick Flip, Rental or Custom —</option>`:""}${Object.entries(pkgs()).map(([k,v])=>`<option value="${esc(k)}" ${b.package===k?"selected":""}>${esc(v.name)}</option>`).join("")}<option value="__custom" ${(b.package===""||(b.package===undefined&&(b.finishes||[]).length)||(b.package&&!pkgs()[b.package]))?"selected":""}>Custom (set finishes by hand)</option></select></div>
   <div class="home" style="grid-column:1/-1"><div><label for="f-sqft">Sq ft</label><input id="f-sqft" data-k="sqft" data-hk="1" inputmode="numeric" placeholder="1,200"></div>
   <div><label for="f-beds">Beds</label><input id="f-beds" data-k="beds" data-hk="Bedroom" inputmode="numeric" placeholder="${cnt(b,"Bedroom")}"></div>
   <div><label for="f-baths">Full baths</label><input id="f-baths" data-k="baths" data-hk="Bathroom" inputmode="numeric" placeholder="${cnt(b,"Bathroom")}"></div>
@@ -679,14 +680,17 @@ function tkUpd(b){let tot=0;for(const l of tkLines(b)){const v=l.q*num(l.c);tot+
 ed.addEventListener("input",e=>{const t=e.target,d=t.dataset;const b=cur();if(!b)return;
  if(d.tq!==undefined){(b.tq=b.tq||{})[d.tq]=t.value;save(b);tkUpd(b);return}
  if(d.tp!==undefined){const f=(b.finishes||[]).find(x=>x.id===d.tp);if(f){f.price=t.value;save(b);syncPkg(b);tkUpd(b)}return}});
+ed.addEventListener("change",e=>{const t=e.target;if(t.id!=="pkgSel")return;const b=cur();if(!b)return;const k=t.value,P=pkgs();
+ if(k==="__custom"){b.package="";save(b);render();toast("Custom — set the finishes below");return}if(!P[k])return;
+ if(b.package!==k&&(b.finishes||[]).some(f=>f.product||f.color)){let ok=true;try{ok=confirm(`Switch to ${P[k].name}? This replaces this house's finishes.`)}catch{}if(!ok){render();return}}
+ applyPkg(b,k);save(b);render();toast(`${P[k].name} applied`)});
 ed.addEventListener("change",e=>{const t=e.target,d=t.dataset;if(!d.hk)return;const b=cur();if(!b)return;if(d.hk!=="1")fitRooms(b,d.hk,t.value);save(b);render()});
 ed.addEventListener("input",e=>{const t=e.target,d=t.dataset;if(d.ff===undefined)return;const b=cur();if(!b)return;const f=b.finishes[+d.fi];f[d.ff]=t.value;save(b);syncPkg(b)});
 ed.addEventListener("change",e=>{const t=e.target,d=t.dataset;const b=cur();if(!b)return;if(d.ff==="cat"){b.finishes[+d.fi].cat=t.value;save(b);syncPkg(b)}if(d.ff==="link")render()});
 ed.addEventListener("click",e=>{const t=e.target.closest("button");if(!t)return;const b=cur();if(!b)return;const d=t.dataset;
  if(t.id==="finAdd"){(b.finishes=b.finishes||[]).push(F("Other"));save(b);syncPkg(b);render();const s=ed.querySelectorAll('[data-ff="product"]');s[s.length-1]?.focus();return}
  if(d.fdel!==undefined){b.finishes.splice(+d.fdel,1);save(b);syncPkg(b);render();return}
- if(t.id==="pkgApply"){const k=$("#pkgSel").value;if(!k){toast("Pick a package first");return}if((b.finishes||[]).some(f=>f.product||f.color)&&!d.sure){d.sure=1;t.textContent="Replace this house's finishes?";return}
-  applyPkg(b,k);save(b);render();toast(`${pkgs()[k].name} applied`);return}
+
  if(t.id==="pkgSave"){const P=pkgs();const opts=Object.entries(P).map(([k,v])=>`<button class="ghost" data-pkgsave="${esc(k)}">${esc(v.name)}</button>`).join("");
   t.insertAdjacentHTML("afterend",`<div class="pkgsave note" style="width:100%">Save this house's finishes${" and section notes"} as: ${opts}<button class="ghost" data-pkgsave="__new">+ New package</button></div>`);t.remove();return}
  if(d.pkgsave){let k=d.pkgsave,P=pkgs();if(k==="__new"){let nm="Package "+(Object.keys(P).length+1);try{nm=(prompt("Name this package (e.g. Premium Flip)",nm)||"").trim()||nm}catch{}k="p"+rid();P[k]={name:nm}}
