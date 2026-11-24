@@ -98,7 +98,7 @@ pre{white-space:pre-wrap;background:var(--bg);border-radius:8px;padding:10px;fon
     <div><label for="s-gcPass">Contractor portal password (give this to your GC)</label><input id="s-gcPass" data-set="gcPass" autocomplete="off"></div>
     <div class="note">Contractor portal link: <b id="gcPortalUrl"></b> <button id="copyPortal" style="min-height:34px;font-size:13px">Copy</button><br>Your GC bookmarks this, signs in with the password above, and sees every property you've sent him.</div>
     <div><label for="impFile">Import properties (Bid Desk export .json)</label><input id="impFile" type="file" accept=".json,application/json" style="padding:8px"></div>
-    <div><label for="s-pageUrl">GC form link (leave blank if BidDeskGC.html sits next to this page)</label><input id="s-pageUrl" data-set="pageUrl" type="url" placeholder="https://onehouroffers.github.io/BidDeskGC.html"></div>
+    <div><label for="s-pageUrl">GC portal link (leave blank to use onehouroffers.github.io/BidDeskGC/)</label><input id="s-pageUrl" data-set="pageUrl" type="url" placeholder="https://onehouroffers.github.io/BidDeskGC.html"></div>
    </div></details>
  </section>
  <section class="panel" id="editor"><p class="empty">Pick a property or add a new one.</p></section>
@@ -475,7 +475,7 @@ function sowHTML(b){if(!b.sow)return`<p class="note">Turns each room's notes and
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="pri big" id="sowPdf" style="flex:1 1 240px">Download line-item Scope of Work PDF</button><button id="rebuildSow" style="flex:1 1 160px">Rebuild from rooms</button></div>`}
 function syncLabor(b,src){ed.querySelectorAll('[data-rk="labor"]').forEach(el=>{if(el!==src)el.value=b.rooms[+el.dataset.r].labor??""});
  const T=money(total(b));[["#tot",T],["#respTot",T],["#respHead",T],["#atot",money(total(b)+matsAll(b))]].forEach(([q,v])=>{const el=$(q);if(el)el.textContent=v})}
-async function gcLink(b){const u=(settings.pageUrl||"").trim()||new URL("BidDeskGC.html",location.href).href;if(!/^https:\/\//.test(u))return"";
+async function gcLink(b){const u=(settings.pageUrl||"").trim()||"https://onehouroffers.github.io/BidDeskGC/";if(!/^https:\/\//.test(u))return"";
  if(!b.bidKey){b.bidKey=Array.from(crypto.getRandomValues(new Uint8Array(12)),x=>x.toString(16).padStart(2,"0")).join("");save(b)}
  const p={id:b.id,a:b.address||"",du:b.dueDate||"",ac:b.access||"",gc:settings.gcName||"",who:["1HO Holdings LLC",settings.myName].filter(Boolean).join(" — "),r:sent(b).map(r=>[r.name,r.note.trim(),r.items,r.id])};
  if(settings.myEmail)p.to=settings.myEmail;if(settings.myPhone)p.sms=settings.myPhone;if(window.BD&&window.BD.api){p.api=window.BD.api;p.k=b.bidKey}
@@ -556,7 +556,7 @@ ed.addEventListener("click",async e=>{const b=cur();if(!b)return;const t=e.targe
  if(d.sdel){const [k,m]=d.sdel.split(":");b.sow.rooms[+k].lines.splice(+m,1);save(b);render();return}
  if(d.useResp!==undefined){const r=b.responses[+d.useResp];for(const x of b.rooms){const v=r.rooms.find(y=>y.id===x.id);x.labor=v?v.labor:"";x.added=v?JSON.parse(JSON.stringify(v.added||[])):[]}save(b);render();toast("Using that bid");return}});
 document.getElementById("bdOut").onclick=()=>window.BD.signOut();
-const portalUrl=()=>((settings.pageUrl||"").trim()||new URL("BidDeskGC.html",location.href).href).split("#")[0];
+const portalUrl=()=>((settings.pageUrl||"").trim()||"https://onehouroffers.github.io/BidDeskGC/").split("#")[0];
 document.getElementById("gcPortalUrl").textContent=portalUrl();
 document.getElementById("copyPortal").onclick=async()=>{try{await navigator.clipboard.writeText(portalUrl());toast("Contractor portal link copied")}catch{toast(portalUrl())}};
 document.getElementById("impFile").addEventListener("change",async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;
