@@ -80,8 +80,11 @@ label{display:block;font-size:13px;color:var(--mute);font-weight:700;margin-bott
 .tk{margin-top:14px;border-top:1px dashed var(--line);padding-top:10px}.tkrow{display:grid;grid-template-columns:minmax(0,1fr) 70px 48px 80px 80px;gap:6px;align-items:center;padding:3px 0;font-size:14px}.tkrow input{min-height:34px;font-size:14px;padding:4px 6px;text-align:right}.tkrow span:last-child{text-align:right;font-weight:700}.tkhead{font-size:12px;color:var(--mute);font-weight:700}
 @media(max-width:600px){.tkrow{grid-template-columns:minmax(0,1fr) 56px 40px 64px 66px;font-size:13px}}
 #pkgSel{width:100%;min-height:44px;font-weight:700}#pkgSel.pick{border:2px solid var(--sky);background:#eaf4f9}
+.warnbox{margin:8px 0;padding:8px 10px;border-radius:10px;background:#fff6e6;border:1px solid #f3dcaa;color:#3a2c10;font-size:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}.warnbox b{flex:1 1 200px}.fin.undec{border-color:#e0b25a;background:#fffaf0}
+.okbox{background:#dff5ea;border-color:#9fd9bb;color:#0f5a38}.quick{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0;font-size:14px;color:var(--mute)}.quick button{min-height:34px;padding:4px 12px}
+.negrow{grid-template-columns:minmax(0,1fr) 90px 110px}.negrow span:nth-child(2){text-align:right;color:var(--mute)}.negtot{border-top:2px solid var(--line);font-weight:800;padding-top:6px}.negtot span:nth-child(2){font-weight:700}
 .pkgrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.pkgrow select{flex:1 1 200px;min-height:42px}
-.fins{display:grid;gap:8px;margin-top:10px}.fin{display:flex;gap:6px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:8px}.fg{flex:1;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px}.fg input,.fg select{min-height:38px;font-size:14px}.fg label{font-size:12px}
+.fins{display:grid;gap:8px;margin-top:10px}.fin{display:flex;gap:6px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:8px}.fg{flex:1;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px}.fg input,.fg select{min-height:38px;font-size:14px;width:100%;min-width:0;box-sizing:border-box}.fg label{font-size:12px}
 .grp{font-size:12px;font-weight:700;color:var(--mute);margin-top:10px}
 .chip.on{background:var(--petrol);border-color:var(--petrol);color:#fff}
 .linkish{background:none;border:0;color:var(--sky);padding:0;min-height:32px;font-size:14px}
@@ -102,7 +105,8 @@ pre{white-space:pre-wrap;background:var(--bg);border-radius:8px;padding:10px;fon
  <section class="panel">
   <button class="pri big" id="newBtn">+ New property</button>
   <div id="list"><p class="empty">Loading…</p></div>
-  <details id="subsBox" style="margin-top:18px"><summary class="note" style="cursor:pointer">Subs <span id="subsCount"></span></summary><div id="subsList" style="margin-top:8px"></div></details>
+  <details id="pkgBox" style="margin-top:18px"><summary class="note" style="cursor:pointer">Finish packages</summary><div id="pkgList" style="margin-top:8px;display:grid;gap:6px"></div></details>
+  <details id="subsBox" style="margin-top:12px"><summary class="note" style="cursor:pointer">Subs <span id="subsCount"></span></summary><div id="subsList" style="margin-top:8px"></div></details>
   <details style="margin-top:12px"><summary class="note" style="cursor:pointer">Setup</summary>
    <div style="display:grid;gap:8px;margin-top:8px">
     <div><label for="s-gcName">GC name</label><input id="s-gcName" data-set="gcName"></div>
@@ -175,7 +179,7 @@ const G={
 const INTERIOR=[G.walls,G.floors,G.trim,G.windows,G.elec,G.heat,G.misc];
 const BATH=[["Fixtures",["Vanity","Vanity top / sink","Faucet","Sink drain / pop-up","Toilet","Wax ring / flange","Toilet supply line","Shutoff valves"]],
  ["Tub & shower",["Tub / shower surround","Tile shower","Reglaze tub","Replace tub","Claw tub conversion","Shower valve","Trim kit","Showerhead","Tub spout / diverter","Tub drain","Shower rod & curtain","Glass door","Caulk & grout"]],
- ["Accessories",["Mirror","Medicine cabinet","Towel bar","TP holder","Robe hook","Grab bar"]],
+ ["Accessories",["Mirror","Medicine cabinet","Towel bar","Toilet paper holder","Robe hook","Grab bar","Door stop"]],
  ["Vent & electrical",["Exhaust fan","Fan vented outside","GFCI outlet","Vanity light","Ceiling light","Outlet covers","Switch plates"]],
  ["Floor & walls",["Tile floor","LVP floor","Subfloor rot","Cement board","Moisture-resistant drywall","Water damage","Paint"]],G.trim,G.windows];
 const CHECK={
@@ -244,27 +248,39 @@ const numOf=r=>parseInt((String(r.name||"").match(/(\d+)\s*$/)||[])[1])||0;
 function sortRooms(b){b.rooms=(b.rooms||[]).map((r,i)=>({r,i})).sort((x,y)=>rankOf(x.r)-rankOf(y.r)||(rankOf(x.r)<100?numOf(x.r)-numOf(y.r):0)||x.i-y.i).map(x=>x.r)}
 function phaseRoom(b,area){const i=phaseOf(area);if(i<0)return null;const name=PHASES[i];let r=b.rooms.find(x=>phaseOf(x.type)===i||phaseOf(x.name)===i);if(!r){r=room(b,name);b.rooms.push(r)}return r}
 /* finishes: what goes in the house (product, color/type, link). Packages make every house match. */
-const FIN_CATS=["Flooring — LVP","Flooring — carpet","Flooring — tile","Wall paint","Trim paint","Ceiling paint","Door paint","Cabinet paint","Cabinets","Countertops","Backsplash","Cabinet hardware","Interior doors","Door hardware","Light fixtures","Ceiling fans","Kitchen sink & faucet","Bath faucet","Vanity","Toilet","Tub / shower surround","Shower head & trim","Mirror","Bath accessories","Outlet covers & switch plates","Smoke / CO detectors","Appliances","Blinds","Exterior paint","Front door","Other"];
-const F=(cat,product="",color="",where="",notes="")=>({id:rid(),cat,product,color,link:"",where,notes});
+const FIN_CATS=["Flooring — LVP","Flooring — carpet","Flooring — tile","Wall paint","Trim paint","Ceiling paint","Door paint","Cabinet paint","Cabinets","Countertops","Backsplash","Cabinet hardware","Interior doors","Door hardware","Door stops","Light fixtures","Ceiling fans","Kitchen light","Kitchen sink & faucet","Garbage disposal","Range hood","Appliances","Bath faucet","Vanity","Vanity light","Toilet","Tub / shower surround","Shower head & trim","Shower rod","Mirror","Toilet paper holder","Towel bar / ring","Bath exhaust fan","Bath accessories","Outlet covers & switch plates","Smoke / CO detectors","Blinds","Exterior paint","Front door","Other"];
+const F=(cat,product="",color="",where="",notes="")=>({id:rid(),cat,product,color,link:"",where,notes,status:""});
+/* never forget these, and kitchen/bath fixtures must be marked new or reuse */
+const MUST=["Smoke / CO detectors","Door stops","Toilet paper holder","Towel bar / ring","Outlet covers & switch plates"];
+const FIX=["Kitchen sink & faucet","Garbage disposal","Range hood","Appliances","Cabinets","Countertops","Kitchen light","Vanity","Bath faucet","Vanity light","Toilet","Tub / shower surround","Shower head & trim","Shower rod","Mirror","Bath exhaust fan"];
+const NEED=[...MUST,...FIX];
+const ensureCats=fs=>{const have=new Set(fs.map(f=>f.cat));return fs.concat(NEED.filter(c=>!have.has(c)).map(c=>F(c)))};
+const STATUS={"":"— New or reuse? —",new:"New",reuse:"Reuse existing"};
 const DEFAULT_PKGS={flip:{name:"Flip Package",finishes:[F("Wall paint","BEHR Ultra — satin","French Silver (PPU18-05) gray","Whole house"),F("Trim paint","Semi-gloss","Black","Whole house"),F("Door paint","Semi-gloss","White","Interior doors"),F("Ceiling paint","Flat","White","Whole house"),F("Flooring — LVP","TrafficMaster Hickman Coast 6 mil click-lock (VTRHDHICCOA6X36)","Gray","Main living areas, kitchen, baths"),F("Flooring — carpet","","Gray","Bedrooms, stairs"),F("Cabinet paint","","Black","Kitchen"),F("Countertops","Laminate","Gray with black trim","Kitchen"),F("Cabinet hardware","Handles, not knobs","Stainless / silver","Kitchen, baths"),F("Door hardware","Levers","Stainless / silver","Whole house"),F("Light fixtures","","Black","Whole house"),F("Ceiling fans","With light kit","Black","Bedrooms, living room"),F("Outlet covers & switch plates","New throughout","White","Whole house")],notes:{}},
  rental:{name:"Rental Package",finishes:["Wall paint","Trim paint","Door paint","Flooring — LVP","Flooring — carpet","Countertops","Cabinet hardware","Door hardware","Light fixtures","Ceiling fans","Outlet covers & switch plates","Blinds"].map(c=>F(c)),notes:{}}};
-const pkgs=()=>{const p=JSON.parse(JSON.stringify(DEFAULT_PKGS));const sp=settings.packages||{};for(const k in sp)p[k]=sp[k];return p};
-const finC=b=>(b.finishes||[]).filter(f=>f.product||f.color||f.link).map(f=>[f.cat,f.product||"",f.color||"",/^https:\/\//.test(f.link||"")?f.link:"",f.where||"",f.notes||""]);
+const pkgs=()=>{const p=JSON.parse(JSON.stringify(DEFAULT_PKGS));const sp=JSON.parse(JSON.stringify(settings.packages||{}));for(const k in sp)p[k]=sp[k];for(const k in p)p[k].finishes=ensureCats(p[k].finishes||[]);return p};
+const finC=b=>(b.finishes||[]).filter(f=>f.product||f.color||f.link||f.status).map(f=>[f.cat,[f.status==="reuse"?"REUSE EXISTING":f.status==="new"?"NEW":"",f.product||""].filter(Boolean).join(" — "),f.color||"",/^https:\/\//.test(f.link||"")?f.link:"",f.where||"",f.notes||""]);
 function applyPkg(b,key,{notes=true}={}){const p=pkgs()[key];if(!p)return;b.package=key;b.finishes=JSON.parse(JSON.stringify(p.finishes||[])).map(f=>({...f,id:rid()}));
  if(notes&&p.notes)for(const r of b.rooms){const n=p.notes[r.type];if(n&&!r.note.trim())r.note=n}}
 /* edits to a house's finishes flow back into its package, so the package fine-tunes job by job */
 function syncPkg(b){const k=b.package,P=pkgs();if(!k||!P[k])return;settings.packages=settings.packages||{};
- settings.packages[k]={name:P[k].name,finishes:JSON.parse(JSON.stringify(b.finishes||[])),notes:P[k].notes||{}};saveSettings();
+ const st={};for(const f of P[k].finishes||[])st[f.cat]=f.status||"";
+ settings.packages[k]={name:P[k].name,finishes:JSON.parse(JSON.stringify(b.finishes||[])).map(f=>({...f,status:st[f.cat]||""})),notes:P[k].notes||{}};saveSettings();
  clearTimeout(syncPkg.t);syncPkg.t=setTimeout(()=>toast(`${P[k].name} updated`),900)}
+function finRow(f,k,ns,pk=""){const A=ns==="f"?`data-fi="${k}"`:`data-pk="${esc(pk)}" data-pi="${k}"`,FF=ns==="f"?"data-ff":"data-pf",fx=FIX.includes(f.cat);
+ return`<div class="fin${fx&&!f.status&&ns==="f"?" undec":""}"><div class="fg"><div><label>Item</label><select ${A} ${FF}="cat">${FIN_CATS.concat(FIN_CATS.includes(f.cat)?[]:[f.cat]).map(c=>`<option ${c===f.cat?"selected":""}>${esc(c)}</option>`).join("")}</select></div>
+  ${fx?`<div><label>New or reuse</label><select ${A} ${FF}="status">${Object.entries(STATUS).map(([v,l])=>`<option value="${v}" ${(f.status||"")===v?"selected":""}>${l}</option>`).join("")}</select></div>`:""}
+  <div><label>Product / brand</label><input ${A} ${FF}="product" value="${esc(f.product)}" placeholder="e.g. TrafficMaster Hickman Coast"></div>
+  <div><label>Color / type</label><input ${A} ${FF}="color" value="${esc(f.color)}" placeholder="e.g. French Silver, satin"></div>
+  <div><label>Link ${/^https:\/\//.test(f.link||"")?`<a href="${esc(f.link)}" target="_blank" rel="noopener">open ↗</a>`:""}</label><input ${A} ${FF}="link" type="url" value="${esc(f.link)}" placeholder="https://www.homedepot.com/…"></div>
+  <div><label>Where</label><input ${A} ${FF}="where" value="${esc(f.where)}" placeholder="Whole house, kitchen…"></div>
+  <div><label>Notes</label><input ${A} ${FF}="notes" value="${esc(f.notes)}"></div></div><button class="x2" ${ns==="f"?`data-fdel="${k}"`:`data-pk="${esc(pk)}" data-pdel="${k}"`} aria-label="Remove">✕</button></div>`}
 function finHTML(b){const fs=b.finishes||[],P=pkgs();
  return`<div class="step" id="finishes"><h3>Finishes</h3><p class="note">What goes in this house — product, color/type and a link. ${esc(settings.gcName||"The GC")} sees these with the scope.${b.package&&P[b.package]?` <b>Changes here update the ${esc(P[b.package].name)} for future houses.</b>`:""}</p>
  <div class="pkgrow"><span class="note" style="flex:1 1 220px;margin:0">Package: <b>${b.package&&P[b.package]?esc(P[b.package].name):"Custom"}</b> — change it at the top.</span><button id="pkgSave" class="ghost">Save these finishes as…</button></div>
- ${fs.length?`<div class="fins">${fs.map((f,k)=>`<div class="fin"><div class="fg"><div><label>Item</label><select data-fi="${k}" data-ff="cat">${FIN_CATS.concat(FIN_CATS.includes(f.cat)?[]:[f.cat]).map(c=>`<option ${c===f.cat?"selected":""}>${esc(c)}</option>`).join("")}</select></div>
-  <div><label>Product / brand</label><input data-fi="${k}" data-ff="product" value="${esc(f.product)}" placeholder="e.g. TrafficMaster Hickman Coast"></div>
-  <div><label>Color / type</label><input data-fi="${k}" data-ff="color" value="${esc(f.color)}" placeholder="e.g. French Silver, satin"></div>
-  <div><label>Link ${/^https:\/\//.test(f.link||"")?`<a href="${esc(f.link)}" target="_blank" rel="noopener">open ↗</a>`:""}</label><input data-fi="${k}" data-ff="link" type="url" value="${esc(f.link)}" placeholder="https://www.homedepot.com/…"></div>
-  <div><label>Where</label><input data-fi="${k}" data-ff="where" value="${esc(f.where)}" placeholder="Whole house, kitchen…"></div>
-  <div><label>Notes / qty</label><input data-fi="${k}" data-ff="notes" value="${esc(f.notes)}"></div></div><button class="x2" data-fdel="${k}" aria-label="Remove finish">✕</button></div>`).join("")}</div>`:`<p class="note">No finishes yet — pick a package above or add them one by one.</p>`}
+ ${(()=>{const have=new Set(fs.map(f=>f.cat)),miss=NEED.filter(c=>!have.has(c)),und=fs.filter(f=>FIX.includes(f.cat)&&!f.status).map(f=>f.cat);
+  return(miss.length?`<div class="warnbox">Don't forget: <b>${miss.map(esc).join(", ")}</b> <button class="ghost" id="finMissing">+ Add them</button></div>`:"")+(und.length?`<div class="warnbox">Mark new or reuse: <b>${und.map(esc).join(", ")}</b></div>`:"")})()}
+ ${fs.length?`<div class="fins">${fs.map((f,k)=>finRow(f,k,"f")).join("")}</div>`:`<p class="note">No finishes yet — pick a package above or add them one by one.</p>`}
  <button class="ghost" id="finAdd" style="margin-top:8px">+ Add finish</button>${tkHTML(b)}</div>`}
 function fix(b){if(!b.rooms)b.rooms=[];for(const r of b.rooms){if(r.sub&&!r.gcRec){r.gcRec={company:r.sub==="yes"?"":r.sub,name:"",trade:"",phone:"",email:"",status:"pending",at:""}}delete r.sub}
  for(const r of b.rooms){if(r.labor==null){const s=(r.items||[]).reduce((t,i)=>t+(typeof i==="object"?num(i.labor)+num(i.price):0),0);r.labor=s?String(s):""}
@@ -308,7 +324,7 @@ const MAT={"outlet covers":["Outlet covers","ea"],"outlet covers throughout":["O
 const matSum=m=>num(m.q)*num(m.c);
 const contPct=b=>b.contPct!=null&&b.contPct!==""?num(b.contPct):(settings.contPct!=null&&settings.contPct!==""?num(settings.contPct):15);
 const subTot=b=>total(b)+matsAll(b),contAmt=b=>subTot(b)*contPct(b)/100,allIn=b=>subTot(b)+contAmt(b);
-function updTotals(b){[["#tot",money(total(b))],["#respTot",money(total(b))],["#respHead",money(total(b))],["#mtot",money(matsAll(b))],["#ctot",money(contAmt(b))],["#atot",money(allIn(b))]].forEach(([q,v])=>{const el=$(q);if(el)el.textContent=v})}
+function updTotals(b){[["#tot",money(total(b))],["#respTot",money(total(b))],["#respHead",money(total(b))],["#mtot",money(matsAll(b))],["#ctot",money(contAmt(b))],["#atot",money(allIn(b))],["#sowCont",money(contAmt(b))],["#sowAll",money(allIn(b))]].forEach(([q,v])=>{const el=$(q);if(el)el.textContent=v})}
 const money2=n=>"$"+(+n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
 const matTotal=r=>(r.mats||[]).reduce((s,m)=>s+matSum(m),0);
 /* quick estimate: sq ft + beds + baths -> quantities for every finish in the house. Prices live on the finish line, so they fine-tune with the package. */
@@ -317,18 +333,18 @@ const has=v=>v!=null&&String(v).trim()!=="";
 function H(b){return{S:num(b.sqft),B:has(b.beds)?num(b.beds):cnt(b,"Bedroom"),F:has(b.baths)?num(b.baths):cnt(b,"Bathroom"),Hb:has(b.half)?num(b.half):cnt(b,"Half bath"),T:Math.max(1,num(b.stories)||1),BS:cnt(b,"Basement")>0}}
 const up=(n,k=1)=>Math.ceil(n/k)*k;
 function tkLines(b){const h=H(b),{S,B,F,Hb,T,BS}=h,fs=b.finishes||[],cats=new Set(fs.map(f=>f.cat));if(!S&&!B&&!F)return[];
- const doors=B*2+F+Hb+2+(BS?1:0),fans=cats.has("Ceiling fans")?B+1:0,cabLF=Math.round(10+S/150),baseLF=Math.ceil(cabLF*.55);
+ const doors=B*2+F+Hb+2+(BS?1:0),fans=cats.has("Ceiling fans")?B+1:0,vl=cats.has("Vanity light"),kl=cats.has("Kitchen light"),cabLF=Math.round(10+S/150),baseLF=Math.ceil(cabLF*.55);
  const fp=S/T,per=4*Math.sqrt(fp||0)*1.1;
  const Q={"Flooring — LVP":[up((S-(cats.has("Flooring — carpet")?B*130+(T>1?60:0):0)-(cats.has("Flooring — tile")?F*45+Hb*20:0))*1.1,10),"sq ft"],
   "Flooring — carpet":[up((B*130+(T>1?60:0))*1.1,10),"sq ft"],"Flooring — tile":[up((F*45+Hb*20)*1.1,5),"sq ft"],
   "Wall paint":[Math.ceil(S*3*2/350),"gal"],"Ceiling paint":[Math.ceil(S/350),"gal"],"Trim paint":[Math.ceil(S/600),"gal"],"Door paint":[Math.max(1,Math.ceil(doors*.15)),"gal"],
   "Cabinet paint":[Math.max(1,Math.ceil(cabLF/8)),"gal"],"Cabinets":[cabLF,"lin ft"],"Countertops":[baseLF,"lin ft"],"Backsplash":[Math.ceil(baseLF*1.5),"sq ft"],
   "Cabinet hardware":[Math.ceil(cabLF*1.4)+(F+Hb)*2,"ea"],"Interior doors":[doors,"ea"],"Door hardware":[doors,"ea"],
-  "Light fixtures":[Math.max(0,B+F+Hb+4+T+2-fans),"ea"],"Ceiling fans":[fans,"ea"],"Kitchen sink & faucet":[1,"set"],"Bath faucet":[F+Hb,"ea"],"Vanity":[F+Hb,"ea"],"Toilet":[F+Hb,"ea"],
+  "Light fixtures":[Math.max(0,B+(vl?0:F+Hb)+(kl?2:4)-2+2+T+2-fans),"ea"],"Door stops":[doors+1,"ea"],"Toilet paper holder":[F+Hb,"ea"],"Towel bar / ring":[F+Hb,"ea"],"Bath exhaust fan":[F+Hb,"ea"],"Vanity light":[F+Hb,"ea"],"Kitchen light":[2,"ea"],"Range hood":[1,"ea"],"Garbage disposal":[1,"ea"],"Shower rod":[F,"ea"],"Ceiling fans":[fans,"ea"],"Kitchen sink & faucet":[1,"set"],"Bath faucet":[F+Hb,"ea"],"Vanity":[F+Hb,"ea"],"Toilet":[F+Hb,"ea"],
   "Tub / shower surround":[F,"ea"],"Shower head & trim":[F,"set"],"Mirror":[F+Hb,"ea"],"Bath accessories":[F+Hb,"set"],
   "Outlet covers & switch plates":[(B*4+16+2*(F+Hb)+2*T+(BS?3:0))+(B+2*(F+Hb)+6+2*T),"ea"],"Smoke / CO detectors":[B+T+(BS?1:0),"ea"],
   "Appliances":[1,"set"],"Blinds":[Math.ceil(S/100)+2,"ea"],"Exterior paint":[Math.ceil(per*9*T*2/300),"gal"],"Front door":[1,"ea"]};
- const tq=b.tq||{};return fs.filter(f=>Q[f.cat]).map(f=>{const [calc,u]=Q[f.cat];const q=has(tq[f.id])?num(tq[f.id]):Math.max(0,calc);
+ const tq=b.tq||{};return fs.filter(f=>Q[f.cat]).map(f=>{let [calc,u]=Q[f.cat];if(f.status==="reuse")calc=0;const q=has(tq[f.id])?num(tq[f.id]):Math.max(0,calc);
   return{f,calc:Math.max(0,calc),q,u,c:f.price||"",d:[f.cat,[f.product,f.color].filter(Boolean).join(" — ")].filter(Boolean).join(": ")}})}
 const tkMats=b=>tkLines(b).filter(l=>l.q>0).map(l=>({d:l.d,q:String(l.q),u:l.u,c:l.c}));
 const matRooms=b=>{const m=tkMats(b);return(m.length?[{name:"Whole house — finishes estimate",mats:m}]:[]).concat(b.rooms||[])};
@@ -338,7 +354,7 @@ function tkHTML(b){const L=tkLines(b),h=H(b);if(!(b.finishes||[]).length)return"
  const tot=L.reduce((s,l)=>s+l.q*num(l.c),0);
  return`<div class="tk"><div class="mh"><b>Materials estimate — ${h.S?num(h.S).toLocaleString()+" sq ft · ":""}${h.B} bed · ${h.F}${h.Hb?"."+5*h.Hb:""} bath${h.T>1?" · "+h.T+" stories":""}</b><b id="tkT">${money(tot)}</b></div>
  <div class="tkrow tkhead"><span>Item</span><span>Qty</span><span>Unit</span><span>$ / unit</span><span>Total</span></div>
- ${L.map(l=>`<div class="tkrow"><span>${esc(l.d)}</span><input data-tq="${esc(l.f.id)}" inputmode="decimal" value="${has((b.tq||{})[l.f.id])?esc(String(b.tq[l.f.id])):""}" placeholder="${l.calc}" aria-label="Quantity"><span>${l.u}</span><input data-tp="${esc(l.f.id)}" inputmode="decimal" value="${esc(l.c)}" placeholder="$" aria-label="Price per unit"><span id="tk-${esc(l.f.id)}">${l.q*num(l.c)?money(l.q*num(l.c)):""}</span></div>`).join("")}
+ ${L.map(l=>`<div class="tkrow"><span>${esc(l.d)}</span><input data-tq="${esc(l.f.id)}" inputmode="decimal" value="${has((b.tq||{})[l.f.id])?esc(String(b.tq[l.f.id])):""}" placeholder="${l.f.status==="reuse"?"reuse":l.calc}" aria-label="Quantity"><span>${l.u}</span><input data-tp="${esc(l.f.id)}" inputmode="decimal" value="${esc(l.c)}" placeholder="$" aria-label="Price per unit"><span id="tk-${esc(l.f.id)}">${l.q*num(l.c)?money(l.q*num(l.c)):""}</span></div>`).join("")}
  <p class="note">Gray numbers are estimates from the house size — type over any of them. Prices save to the package, so you only enter them once. This adds into Materials, the shopping list and the lender scope.</p></div>`}
 function suggestMats(r){r.mats=r.mats||[];const have=new Set(r.mats.map(m=>m.d.toLowerCase()));let n=0;
  const src=[...r.items];const note=(r.note||"").toLowerCase();
@@ -387,17 +403,61 @@ document.addEventListener("click",e=>{const t=e.target.closest("#subsList button
  if(d.esave){const v=readSubForm("e-"+d.esave);const s=(settings.subs||[]).find(x=>x.id===d.esave);if(s){Object.assign(s,v);saveSettings();for(const hb of bids){let ch=false;for(const r of hb.rooms||[])if(r.ourSub&&r.ourSub.id===s.id){Object.assign(r.ourSub,v);ch=true}if(ch)save(hb)}}subEdit=null;renderSubs();render();toast("Sub updated");return}
  if(d.sdel){if(!d.sure){d.sure=1;t.textContent="Tap again to remove";return}settings.subs=(settings.subs||[]).filter(x=>x.id!==d.sdel);saveSettings();renderSubs();render();toast("Removed from your sub list — houses keep their record");return}
  if(d.gojob){e.preventDefault();sel=d.gojob;renderList();render();return}});
-function renderList(){renderSubs();const rows=[...bids].sort((a,b)=>(b.updated||"").localeCompare(a.updated||""));
+let pkgEdit=null;
+function renderPkgs(){const el=document.getElementById("pkgList");if(!el)return;el.innerHTML=Object.entries(pkgs()).map(([k,v])=>`<button class="ghost" data-pkgopen="${esc(k)}" style="text-align:left">${esc(v.name)} <span class="note">· ${(v.finishes||[]).filter(f=>f.product||f.color||f.link).length} set</span></button>`).join("")}
+function pkgEditor(){const ed=$("#editor"),P=pkgs(),p=P[pkgEdit];if(!p){pkgEdit=null;return false}
+ ed.innerHTML=`<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div><h2>${esc(p.name)}</h2><span class="note">Every house you put on this package starts with these. Paste a link on each item so you can reorder the same thing.</span></div><button class="ghost" id="pkgClose">Done</button></div>
+ <div class="step"><div class="fins">${p.finishes.map((f,k)=>finRow(f,k,"p",pkgEdit)).join("")}</div><button class="ghost" data-pk="${esc(pkgEdit)}" id="pkgAddRow" style="margin-top:8px">+ Add item</button>
+ ${["flip","rental"].includes(pkgEdit)?"":`<button class="no" id="pkgDel" style="margin-top:8px;float:right">Delete package</button>`}</div>`;return true}
+function pkgPut(k,mut){const P=pkgs();settings.packages=settings.packages||{};const p=settings.packages[k]||(settings.packages[k]={name:P[k].name,finishes:P[k].finishes,notes:P[k].notes||{}});p.finishes=ensureCats(p.finishes||[]);mut(p);saveSettings()}
+document.addEventListener("click",e=>{const t=e.target.closest("button");if(!t)return;const d=t.dataset;
+ if(d.pkgopen){pkgEdit=d.pkgopen;sel=null;renderList();render();if(innerWidth<860)$("#editor").scrollIntoView({behavior:"smooth"});return}
+ if(!pkgEdit)return;
+ if(t.id==="pkgClose"){pkgEdit=null;render();return}
+ if(t.id==="pkgAddRow"){pkgPut(pkgEdit,p=>p.finishes.push(F("Other")));render();return}
+ if(d.pdel!==undefined){pkgPut(pkgEdit,p=>p.finishes.splice(+d.pdel,1));render();return}
+ if(t.id==="pkgDel"){if(!d.sure){d.sure=1;t.textContent="Tap again to delete";return}delete settings.packages[pkgEdit];saveSettings();pkgEdit=null;renderList();render();toast("Package deleted — houses keep their finishes");return}});
+document.addEventListener("input",e=>{const t=e.target,d=t.dataset;if(d.pf===undefined||!pkgEdit)return;pkgPut(d.pk,p=>{p.finishes[+d.pi][d.pf]=t.value})});
+document.addEventListener("change",e=>{const t=e.target,d=t.dataset;if(d.pf===undefined||!pkgEdit)return;pkgPut(d.pk,p=>{p.finishes[+d.pi][d.pf]=t.value});if(["cat","status","link"].includes(d.pf))render();renderPkgs()});
+function renderList(){renderSubs();renderPkgs();const rows=[...bids].sort((a,b)=>(b.updated||"").localeCompare(a.updated||""));
  $("#list").innerHTML=rows.length?rows.map(b=>{const st=b.status==="in"?["in","Bid in · "+money(total(b))]:b.status==="sent"?["sent","Sent "+(b.sentAt||"")]:["","Not sent"];
   const pend=(b.rooms||[]).filter(r=>r.gcRec&&r.gcRec.status==="pending").length;return `<button class="job ${sel===b.id?"sel":""}" data-id="${esc(b.id)}"><b>${esc(b.address||"New property")}</b><span><span class="pill p-${st[0]}">${esc(st[1])}</span>${pend?` <span class="pill" style="background:#FACD88;color:#3b2a00">${pend} sub${pend===1?"":"s"} to approve</span>`:""}</span></button>`}).join(""):'<p class="empty">No properties yet.</p>'}
 
+/* negotiation: counter the GC's labor bid line by line */
+function negLines(b){const out=[];for(const r of b.rooms||[]){if(num(r.labor))out.push(["L|"+r.id,r.name,num(r.labor)]);for(const a of r.added||[])if(num(a.labor))out.push(["A|"+r.id+"|"+a.item,r.name+" — + "+a.item,num(a.labor)])}return out}
+const offerOf=(b,k,h)=>{const v=(b.cdraft||{})[k];return has(v)?num(v):h};
+function negSum(b){const L=negLines(b);return[L.reduce((s,l)=>s+l[2],0),L.reduce((s,l)=>s+offerOf(b,l[0],l[2]),0)]}
+function setLine(b,k,v){const p=k.split("|"),r=(b.rooms||[]).find(x=>x.id===p[1]);if(!r)return;if(p[0]==="L")r.labor=String(num(v));else{const it=p.slice(2).join("|"),a=(r.added||[]).find(x=>x.item===it);if(a)a.labor=String(num(v))}}
+function applyCounterReply(b,it){const c=b.counter;if(!c)return;const when=new Date(it.at).toLocaleString();
+ if(it.accept){for(const l of c.lines||[])setLine(b,l[0],l[3]);c.status="accepted";c.reply=c.ours}
+ else{let t=0;for(const l of c.lines||[]){const v=has((it.lines||{})[l[0]])?num(it.lines[l[0]]):l[3];setLine(b,l[0],v);t+=v}c.status="countered";c.reply=t}
+ c.doneAt=when;c.gcNote=it.note||"";b.cdraft={};(b.negLog=b.negLog||[]).push({at:when,who:"gc",status:c.status,total:c.reply,note:c.gcNote})}
+function negHTML(b){const L=negLines(b);if(!L.length)return"";const g=esc(settings.gcName||"the GC"),c=b.counter,[his,ours]=negSum(b);
+ const st=c?({sent:`Counter sent ${esc(c.sentAt)} — ${money(c.ours)} vs his ${money(c.his)}. Waiting on ${g}.`,accepted:`✓ ${g} accepted your counter — ${money(c.ours)} (${esc(c.doneAt||"")}). His numbers above are updated.`,countered:`${g} came back at ${money(c.reply||0)} (${esc(c.doneAt||"")})${c.gcNote?` — “${esc(c.gcNote)}”`:""}. His new numbers are loaded above. Counter again below if you want.`})[c.status]||"":"";
+ return`<div class="neg"><h4 class="sec" style="margin-top:18px">Counter-offer to ${g}</h4>${st?`<div class="warnbox${c.status==="accepted"?" okbox":""}">${st}</div>`:""}
+ <p class="note">Type what you want to pay next to any line — blank keeps his number. ${g} only sees his bid and your offer, never the contingency.</p>
+ <div class="quick">Quick fill: <button class="ghost" data-negpct="5">−5%</button><button class="ghost" data-negpct="10">−10%</button><button class="ghost" data-negpct="15">−15%</button><button class="ghost" data-negpct="0">Clear</button></div>
+ <div class="tkrow tkhead negrow"><span>Line</span><span>His bid</span><span>Your offer</span></div>
+ ${L.map(([k,n,h])=>`<div class="tkrow negrow"><span>${esc(n)}</span><span>${money(h)}</span><input data-neg="${esc(k)}" inputmode="decimal" value="${has((b.cdraft||{})[k])?esc(String(b.cdraft[k])):""}" placeholder="${h}" aria-label="Your offer for ${esc(n)}"></div>`).join("")}
+ <div class="tkrow negrow negtot"><span>Total</span><span>${money(his)}</span><span id="negT">${money(ours)}</span></div><p class="note" id="negSave">${his>ours?`Saves ${money(his-ours)} (${Math.round((his-ours)/his*100)}%)`:""}</p>
+ <label for="negNote">Message to ${g} (optional)</label><textarea id="negNote" placeholder="e.g. Paint and flooring came in high — can you meet us here?">${esc(b.cnote||"")}</textarea>
+ <button class="pri" id="negSend" style="margin-top:8px">Send counter to ${g}</button><p class="note" id="negStatus"></p>
+ ${(b.negLog||[]).length?`<details style="margin-top:8px"><summary class="note" style="cursor:pointer">Negotiation history</summary>${b.negLog.map(x=>`<div class="note">${esc(x.at)} · ${x.who==="us"?"We offered":x.status==="accepted"?g+" accepted":g+" countered"} ${money(x.total)}${x.note?` — “${esc(x.note)}”`:""}</div>`).join("")}</details>`:""}</div>`}
+function negEmail(b,c,g){const url=((settings.pageUrl||"").trim()||"https://onehouroffers.github.io/BidDeskGC/").split("#")[0];
+ const td="padding:8px;border-bottom:1px solid #d8e2e8;";
+ const rows=c.lines.map(l=>`<tr><td style="${td}">${esc(l[1])}</td><td style="${td}text-align:right;color:#567080">${money(l[2])}</td><td style="${td}text-align:right;font-weight:700;color:#034B68">${money(l[3])}</td></tr>`).join("");
+ const html=`<div style="font-family:Arial,sans-serif;max-width:640px;color:#0b2330"><h2 style="color:#034B68;margin:0 0 4px">Counter-offer — ${esc(b.address)}</h2><p>${esc(g)}, thanks for the bid. Here's what we can do on labor:</p>${c.note?`<p style="background:#fff6e6;border:1px solid #f3dcaa;padding:10px;border-radius:8px">${esc(c.note).replace(/\n/g,"<br>")}</p>`:""}
+ <table style="border-collapse:collapse;width:100%;border-top:3px solid #034B68"><tr><th style="${td}text-align:left">Line</th><th style="${td}text-align:right">Your bid</th><th style="${td}text-align:right">Our offer</th></tr>${rows}<tr><td style="${td}font-weight:700">Total</td><td style="${td}text-align:right">${money(c.his)}</td><td style="${td}text-align:right;font-weight:800;color:#034B68">${money(c.ours)}</td></tr></table>
+ <p style="margin:18px 0"><a href="${esc(url)}" style="background:#0f7a4b;color:#fff;padding:14px 20px;border-radius:10px;text-decoration:none;font-weight:700">Open your portal to accept or respond</a></p><p style="color:#567080;font-size:13px">Sign in with your contractor password. Tap Accept, or change any line and send your numbers back. [${esc(b.id)}]</p></div>`;
+ const text=[`Counter-offer — ${b.address}`,c.note||"",""].concat(c.lines.map(l=>`${l[1]}: your bid ${money(l[2])} → our offer ${money(l[3])}`),["",`Total: ${money(c.his)} → ${money(c.ours)}`,"",`Accept or respond in your portal: ${url}`,`[${b.id}]`]).join("\n");
+ return{html,text}}
 function respHTML(b){const rs=b.responses||[];if(!rs.length)return`<p class="empty" style="padding:6px 0">No bids yet. When ${esc(settings.gcName||"the GC")} replies, his numbers show up here room by room.</p>`;
  return rs.map((r,k)=>{const latest=k===rs.length-1;const rows=(r.rooms||[]).filter(x=>num(x.labor)||(x.added||[]).length);
   return `<details class="resp" ${latest?"open":""}><summary><b>${latest?"Latest bid":"Earlier bid"}</b> · ${esc(r.at)} · by ${esc(r.via)}<span${latest?' id="respHead"':""}>${r.unparsed&&!latest?"see message":money(latest?total(b):r.total)}</span></summary>
   ${latest?`<table><tbody>${b.rooms.map((x,ri)=>({x,ri})).filter(({x})=>sent(b).includes(x)||num(x.labor)||(x.added||[]).length).map(({x,ri})=>`<tr><td>${esc(x.name)}</td><td class="num"><input class="rin" data-r="${ri}" data-rk="labor" value="${esc(x.labor)}" inputmode="decimal" placeholder="$" aria-label="Labor for ${esc(x.name)}"></td></tr>${(x.added||[]).map((a,ai)=>`<tr class="addrow"><td>+ ${esc(a.item)}</td><td class="num"><input class="rin" data-ai="${ri}:${ai}" value="${esc(a.labor)}" inputmode="decimal" placeholder="$" aria-label="Labor for ${esc(a.item)}"></td></tr>`).join("")}`).join("")}<tr class="tot"><td>Total</td><td class="num" id="respTot">${money(total(b))}</td></tr></tbody></table><p class="note">Every price is editable — changes update the room and all totals.</p>`:rows.length?`<table><tbody>${rows.map(x=>`<tr><td>${esc(x.name)}</td><td class="num">${num(x.labor)?money(num(x.labor)):"—"}</td></tr>${(x.added||[]).map(a=>`<tr class="addrow"><td>+ ${esc(a.item)}</td><td class="num">${num(a.labor)?money(num(a.labor)):"no price"}</td></tr>`).join("")}`).join("")}<tr class="tot"><td>Total</td><td class="num">${money(r.total)}</td></tr></tbody></table>`:`<p class="note">Couldn't read room prices from this one — here's what he sent:</p>`}
   <details><summary class="note" style="cursor:pointer">His message</summary><pre>${esc(r.raw)}</pre></details>
   ${latest?"":`<button data-use-resp="${k}" style="margin-top:8px;min-height:36px">Use this bid instead</button>`}</details>`}).reverse().join("")}
-function render(){const b=bids.find(x=>x.id===sel),ed=$("#editor");if(!b){ed.innerHTML='<p class="empty">Pick a property or add a new one.</p>';return}
+function render(){if(pkgEdit&&pkgEditor())return;const b=bids.find(x=>x.id===sel),ed=$("#editor");if(!b){ed.innerHTML='<p class="empty">Pick a property or add a new one.</p>';return}
  fix(b);const g=esc(settings.gcName||"GC");
  ed.innerHTML=`<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap"><div><h2>${esc(b.address||"New property")}</h2><span id="saveState" class="savest ok">${q[b.id]&&q[b.id].body?"Saving…":"All changes saved ✓"}</span></div><button class="no" id="del" style="min-height:36px">Delete</button></div>
  <div class="top"><div><label for="f-address">Address</label><input id="f-address" data-k="address" placeholder="1234 E 99th St, Cleveland, OH 44104"></div>
@@ -430,12 +490,12 @@ function render(){const b=bids.find(x=>x.id===sel),ed=$("#editor");if(!b){ed.inn
   ${true?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><a class="btn" id="formLink" href="#" target="_blank" rel="noopener" style="flex:1 1 200px">Open ${g}'s bid form</a><button id="copyForm" style="flex:1 1 200px">Copy bid form link</button></div><p class="note">This is the full link for this property — the hosted page alone has no bid details.</p>`:`<p class="note"></p>`}
   <p class="note" id="sendStatus"></p>${(b.sends||[]).length?`<div class="note"><b>Send history</b>${b.sends.map(x=>`<div>${esc(x.at)} — ${esc(x.how||"email")}${x.to?" → "+esc(x.to):""}</div>`).join("")}</div>`:""}
   <details style="margin-top:10px"><summary class="note" style="cursor:pointer">Plain-text version</summary><pre>${esc(message(b))}</pre></details></div>
- <div class="step" id="bids"><h3>${g}'s bids for this property</h3>${respHTML(b)}
+ <div class="step" id="bids"><h3>${g}'s bids for this property</h3>${respHTML(b)}${negHTML(b)}
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="pri" id="checkMail">Check email for ${g}'s reply</button></div><p class="note" id="mailStatus"></p>
   <label for="pdfIn" style="margin-top:12px">Got his filled-in PDF another way? Drop it here</label><input id="pdfIn" type="file" accept="application/pdf,.pdf" style="padding:8px">
   <label for="paste" style="margin-top:12px">Got it by text? Paste it here</label><textarea id="paste" placeholder="1 - 3500&#10;2 - 6200&#10;+ Kitchen: replace window - 300"></textarea><div style="margin-top:8px"><button id="parse">Log this reply</button></div></div>
  <div class="step" id="sow"><h3>Line-by-line Scope of Work</h3>${sowHTML(b)}</div>`;
- ed.querySelectorAll("[data-k]").forEach(el=>el.value=b[el.dataset.k]??"");
+ ed.querySelectorAll("[data-k]").forEach(el=>el.value=b[el.dataset.k]??(el.dataset.k==="contPct"?String(contPct(b)):""));
  gcLink(b).then(l=>{const a=document.getElementById("formLink");if(a&&l)a.href=l})}
 
 /* the text Josh gets */
@@ -458,7 +518,7 @@ function sow(b,li){if(!window.jspdf){toast("PDF tools didn't load — reload the
  d.setDrawColor(200,212,220);d.line(L,82,W-L,82);
  const info=[["Property",b.address],["Prepared",new Date().toLocaleDateString("en-US",{year:"numeric",month:"long",day:"numeric"})],["Contractor",[settings.gcCompany,settings.gcName].filter(Boolean).join(" — ")||""],["Bid due",b.dueDate||""],["Access",b.access||""]].filter(r=>r[1]);
  d.autoTable({startY:92,body:info,theme:"plain",styles:{fontSize:10,cellPadding:{top:2,bottom:2,left:0,right:6},textColor:ink},columnStyles:{0:{fontStyle:"bold",cellWidth:80,textColor:mute}},margin:{left:L,right:L}});
- if(li){const body=[],mny=v=>num(v)?money(num(v)):"";let gt=0;
+ if(li){syncSow(b);const body=[],mny=v=>num(v)?money(num(v)):"";let gt=0;
   b.sow.rooms.forEach((r,k)=>{gt+=num(r.price);body.push([{content:`${k+1}`,styles:{fillColor:[234,244,249],fontStyle:"bold",halign:"center"}},{content:r.name.toUpperCase(),styles:{fillColor:[234,244,249],fontStyle:"bold"}},{content:"",styles:{fillColor:[234,244,249]}}]);
    r.lines.filter(l=>l.d.trim()).forEach((l,m)=>body.push([`${k+1}.${m+1}`,l.d,mny(l.c)]));
    body.push(["",{content:`${r.name} subtotal`,styles:{halign:"right",fontStyle:"bold"}},{content:mny(r.price),styles:{fontStyle:"bold"}}])});
@@ -595,29 +655,35 @@ async function checkMail(b){const st=$("#mailStatus");st.textContent="Checking f
   if(got){save(b);renderList();render();toast(`${got} new repl${got===1?"y":"ies"} logged`)}else st.textContent=`Nothing new from ${settings.gcName||"the GC"} yet. Bids sent from the form load in by themselves.`}
  catch(x){st.textContent="Couldn't check: "+(x&&x.message||"server unreachable")}}
 /* bids submitted from the GC form land in bid.inbox — load them in */
-function processInbox(b){let n=0;for(const it of b.inbox||[]){if(it.done)continue;const f=it.form||{};
+function processInbox(b){let n=0,cr=null;for(const it of b.inbox||[]){if(it.done)continue;if(it.type==="counter"){applyCounterReply(b,it);it.done=true;cr=b.counter;n++;continue}const f=it.form||{};
   const data={subs:f.subs||{},labor:f.labor||{},add:(f.add||[]).map(a=>({addArea:a.area||"",addDesc:a.desc||"",addLabor:a.labor||""})),extra:{}};
   ["notes","start","total","name","days"].forEach(k=>{if(f[k])data.extra[k]=String(f[k])});if(f.days)b.gcDays=String(f.days);
   applyBidPdf(b,data,"bid form");if(b.responses&&b.responses.length)b.responses[b.responses.length-1].at=new Date(it.at).toLocaleString();it.done=true;n++}
- if(n){save(b);toast(`New bid in for ${b.address||b.id}`)}return n}
+ if(n){save(b);toast(cr?`${settings.gcName||"GC"} ${cr.status==="accepted"?"accepted your counter":"countered"} on ${b.address||b.id}`:`New bid in for ${b.address||b.id}`)}return n}
 /* line-by-line scope */
 const cap=t=>t.charAt(0).toUpperCase()+t.slice(1);
 function splitNote(t){return String(t||"").split(/\n|;|\.(?=\s|$)|,(?![^(]*\))/).map(x=>x.replace(/\s+/g," ").trim()).filter(x=>x.length>2).map(cap)}
 function buildSow(b){const rooms=(b.rooms||[]).filter(r=>r.note.trim()||r.items.length||(r.added||[]).length||num(r.labor));
- b.sow={at:new Date().toLocaleString(),rooms:rooms.map(r=>{const lines=splitNote(r.note).map(d=>({d,c:""}));const norm=x=>x.toLowerCase().replace(/[^a-z]/g,""),low=norm(lines.map(l=>l.d).join(" "));
+ b.sow={at:new Date().toLocaleString(),rooms:rooms.map(sowRoom)}}
+function sowRoom(r){{const lines=splitNote(r.note).map(d=>({d,c:""}));const norm=x=>x.toLowerCase().replace(/[^a-z]/g,""),low=norm(lines.map(l=>l.d).join(" "));
   for(const it of r.items)if(!low.includes(norm(it.split(/[ /]/)[0]))&&!low.includes(norm(it)))lines.push({d:it,c:""});
   for(const a of r.added||[])lines.push({d:cap(a.item)+" (contractor addition)",c:a.labor||""});
   if(r.ourSub)lines.push({d:"Subcontractor: "+subLine(r.ourSub),c:""});
   if(!lines.length)lines.push({d:"Per walkthrough",c:""});
-  return{id:r.id,name:r.name,price:String(roomSum(r)||""),lines}})}}
-function sowHTML(b){if(!b.sow)return`<p class="note">Turns each room's notes and checklist into numbered line items (1.1, 1.2…) with ${esc(settings.gcName||"the GC")}'s price as each room's subtotal. You can edit any line, add lines, and split costs per line before downloading.</p><button class="pri" id="buildSow">Build line-by-line Scope of Work</button>`;
+  return{id:r.id,name:r.name,price:String(roomSum(r)||""),lines}}}
+/* the lender scope always uses the live labor numbers (bids, counters, edits), so it matches the totals */
+function syncSow(b){if(!b.sow)return;const by={};for(const x of b.sow.rooms)by[x.id]=x;const out=[];
+ for(const r of b.rooms||[]){let x=by[r.id];if(!x){if(!num(roomSum(r)))continue;x=sowRoom(r)}
+  x.name=r.name;x.price=String(roomSum(r)||"");for(const a of r.added||[]){const ln=x.lines.find(l=>l.d===cap(a.item)+" (contractor addition)");if(ln)ln.c=a.labor||"";else x.lines.push({d:cap(a.item)+" (contractor addition)",c:a.labor||""})}out.push(x)}
+ b.sow.rooms=out}
+function sowHTML(b){syncSow(b);if(!b.sow)return`<p class="note">Turns each room's notes and checklist into numbered line items (1.1, 1.2…) with ${esc(settings.gcName||"the GC")}'s price as each room's subtotal. You can edit any line, add lines, and split costs per line before downloading.</p><button class="pri" id="buildSow">Build line-by-line Scope of Work</button>`;
  let gt=0;const rooms=b.sow.rooms.map((r,k)=>{gt+=num(r.price);const alloc=r.lines.reduce((t,l)=>t+num(l.c),0),p=num(r.price);
-  return`<div class="sroom"><div class="sh"><b>${k+1}. ${esc(r.name)}</b><span><label class="note" for="sp${k}">Subtotal</label><input id="sp${k}" class="sp" data-s="${k}" data-sk="price" value="${esc(r.price)}" inputmode="decimal" placeholder="$"></span></div>
+  return`<div class="sroom"><div class="sh"><b>${k+1}. ${esc(r.name)}</b><span><span class="note">Subtotal </span><b id="sp${k}">${num(r.price)?money(num(r.price)):"—"}</b></span></div>
   ${r.lines.map((l,m)=>`<div class="sl"><span class="ln">${k+1}.${m+1}</span><input data-s="${k}" data-l="${m}" data-lk="d" value="${esc(l.d)}" aria-label="Line ${k+1}.${m+1}"><input class="sc" data-s="${k}" data-l="${m}" data-lk="c" value="${esc(l.c)}" inputmode="decimal" placeholder="$ opt." aria-label="Cost"><button class="x2" data-sdel="${k}:${m}" aria-label="Remove line">✕</button></div>`).join("")}
   <div class="sf"><button class="linkish" data-sadd="${k}">+ Add line</button><span class="note" id="sa${k}">${alloc?(Math.round(alloc)===Math.round(p)?"Lines match subtotal ✓":`Lines add to ${money(alloc)} — subtotal ${money(p)}`):""}</span></div></div>`}).join("");
  const mr=matRooms(b).filter(r=>(r.mats||[]).some(m=>m.d.trim()));
  const mats=mr.length?mr.map(r=>`<div class="sroom"><div class="sh"><b>${esc(r.name)}</b><b>${money(matTotal(r))}</b></div>${r.mats.filter(m=>m.d.trim()).map(m=>`<div class="mline"><span>${esc(m.d)}</span><span>${esc(m.q||"?")} ${esc(m.u||"")}</span><span class="num">${matSum(m)?money(matSum(m)):"—"}</span></div>`).join("")}</div>`).join(""):`<p class="note">No materials yet — add them in each room under "Materials to buy".</p>`;
- return`<p class="note">Built ${esc(b.sow.at)} from the rooms and ${esc(settings.gcName||"the GC")}'s latest numbers. Edits save automatically.</p>
+ return`<p class="note">Built ${esc(b.sow.at)}. Each room's subtotal always matches ${esc(settings.gcName||"the GC")}'s current labor number — change it in the room or the bid above. Line wording edits save automatically.</p>
   <h4 class="sec">Labor</h4>${rooms}
   <div class="total" style="margin-top:12px"><span>Labor total</span><span id="sowTot">${money(gt)}</span></div>
   <h4 class="sec">Materials</h4><p class="note">Live from each room's "Materials to buy" list.</p>${mats}
@@ -655,8 +721,8 @@ function markSent(b){if(b.status!=="in"){b.status="sent";b.sentAt=today();save(b
 
 /* events */
 $("#newBtn").addEventListener("click",()=>{const b={id:"BR-"+today().slice(2).replace(/-/g,"")+"-"+rid().slice(0,3).toUpperCase(),status:"draft",rooms:[],created:today()};
- for(const t of START)b.rooms.push(room(b,t));if(settings.defaultPkg)applyPkg(b,settings.defaultPkg);bids.push(b);sel=b.id;save(b);renderList();render();$("#f-address").focus()});
-$("#list").addEventListener("click",e=>{const j=e.target.closest("[data-id]");if(j){sel=j.dataset.id;renderList();render();if(innerWidth<860)$("#editor").scrollIntoView({behavior:"smooth"})}});
+ for(const t of START)b.rooms.push(room(b,t));if(settings.defaultPkg)applyPkg(b,settings.defaultPkg);bids.push(b);sel=b.id;pkgEdit=null;save(b);renderList();render();$("#f-address").focus()});
+$("#list").addEventListener("click",e=>{const j=e.target.closest("[data-id]");if(j){pkgEdit=null;sel=j.dataset.id;renderList();render();if(innerWidth<860)$("#editor").scrollIntoView({behavior:"smooth"})}});
 const ed=$("#editor"),cur=()=>bids.find(x=>x.id===sel);
 ed.addEventListener("input",e=>{const b=cur();if(!b)return;const t=e.target,d=t.dataset;
  if(d.ai){const [ri,ai]=d.ai.split(":");b.rooms[+ri].added[+ai].labor=t.value;save(b);syncLabor(b,t);return}
@@ -680,16 +746,29 @@ function tkUpd(b){let tot=0;for(const l of tkLines(b)){const v=l.q*num(l.c);tot+
 ed.addEventListener("input",e=>{const t=e.target,d=t.dataset;const b=cur();if(!b)return;
  if(d.tq!==undefined){(b.tq=b.tq||{})[d.tq]=t.value;save(b);tkUpd(b);return}
  if(d.tp!==undefined){const f=(b.finishes||[]).find(x=>x.id===d.tp);if(f){f.price=t.value;save(b);syncPkg(b);tkUpd(b)}return}});
+function negUpd(b){const[h,o]=negSum(b),T=$("#negT"),S=$("#negSave");if(T)T.textContent=money(o);if(S)S.textContent=h>o?`Saves ${money(h-o)} (${Math.round((h-o)/h*100)}%)`:""}
+ed.addEventListener("input",e=>{const t=e.target,d=t.dataset,b=cur();if(!b)return;if(d.neg!==undefined){(b.cdraft=b.cdraft||{})[d.neg]=t.value;save(b);negUpd(b)}else if(t.id==="negNote"){b.cnote=t.value;save(b)}});
+ed.addEventListener("click",async e=>{const t=e.target.closest("button");if(!t)return;const b=cur();if(!b)return;const d=t.dataset;
+ if(d.negpct!==undefined){const p=num(d.negpct);b.cdraft={};if(p)for(const [k,,h] of negLines(b))b.cdraft[k]=String(Math.round(h*(1-p/100)/25)*25);save(b);render();$("#bids .neg")?.scrollIntoView({block:"nearest"});return}
+ if(t.id!=="negSend"||t.disabled)return;const st=$("#negStatus"),g=settings.gcName||"the GC";
+ if(!settings.gcEmail){st.textContent=`Save ${g}'s email in the Send step first.`;return}
+ const lines=negLines(b).map(([k,n,h])=>[k,n,h,offerOf(b,k,h)]),[his,ours]=negSum(b);if(ours>=his&&!d.same){d.same=1;t.textContent="Your offer matches his bid — send anyway?";return}
+ if(!d.sure){d.sure=1;t.textContent=`Send ${money(ours)} counter to ${settings.gcEmail}?`;return}
+ t.disabled=true;t.textContent="Sending…";const c={status:"sent",sentAt:new Date().toLocaleString(),note:(b.cnote||"").trim(),lines,his,ours};const m=negEmail(b,c,(g||"").split(" ")[0]);
+ try{await mcp.callTool("Gmail","send_message",{to:[settings.gcEmail],subject:`Counter-offer — ${b.address} [${b.id}]`,body:m.text,htmlBody:m.html});
+  b.counter=c;(b.negLog=b.negLog||[]).push({at:c.sentAt,who:"us",total:ours,note:c.note});b.cnote="";save(b);render();toast("Counter sent to "+g)}
+ catch(x){t.disabled=false;delete d.sure;t.textContent="Try again";st.textContent="Couldn't send — "+((x&&x.message)||"check your connection")}});
 ed.addEventListener("change",e=>{const t=e.target;if(t.id!=="pkgSel")return;const b=cur();if(!b)return;const k=t.value,P=pkgs();
  if(k==="__custom"){b.package="";save(b);render();toast("Custom — set the finishes below");return}if(!P[k])return;
  if(b.package!==k&&(b.finishes||[]).some(f=>f.product||f.color)){let ok=true;try{ok=confirm(`Switch to ${P[k].name}? This replaces this house's finishes.`)}catch{}if(!ok){render();return}}
  applyPkg(b,k);save(b);render();toast(`${P[k].name} applied`)});
 ed.addEventListener("change",e=>{const t=e.target,d=t.dataset;if(!d.hk)return;const b=cur();if(!b)return;if(d.hk!=="1")fitRooms(b,d.hk,t.value);save(b);render()});
 ed.addEventListener("input",e=>{const t=e.target,d=t.dataset;if(d.ff===undefined)return;const b=cur();if(!b)return;const f=b.finishes[+d.fi];f[d.ff]=t.value;save(b);syncPkg(b)});
-ed.addEventListener("change",e=>{const t=e.target,d=t.dataset;const b=cur();if(!b)return;if(d.ff==="cat"){b.finishes[+d.fi].cat=t.value;save(b);syncPkg(b)}if(d.ff==="link")render()});
+ed.addEventListener("change",e=>{const t=e.target,d=t.dataset;const b=cur();if(!b)return;if(d.ff==="cat"||d.ff==="status"){b.finishes[+d.fi][d.ff]=t.value;save(b);syncPkg(b);render()}if(d.ff==="link")render()});
 ed.addEventListener("click",e=>{const t=e.target.closest("button");if(!t)return;const b=cur();if(!b)return;const d=t.dataset;
  if(t.id==="finAdd"){(b.finishes=b.finishes||[]).push(F("Other"));save(b);syncPkg(b);render();const s=ed.querySelectorAll('[data-ff="product"]');s[s.length-1]?.focus();return}
  if(d.fdel!==undefined){b.finishes.splice(+d.fdel,1);save(b);syncPkg(b);render();return}
+ if(t.id==="finMissing"){b.finishes=ensureCats(b.finishes||[]);save(b);syncPkg(b);render();toast("Added — fill in what you use");return}
 
  if(t.id==="pkgSave"){const P=pkgs();const opts=Object.entries(P).map(([k,v])=>`<button class="ghost" data-pkgsave="${esc(k)}">${esc(v.name)}</button>`).join("");
   t.insertAdjacentHTML("afterend",`<div class="pkgsave note" style="width:100%">Save this house's finishes${" and section notes"} as: ${opts}<button class="ghost" data-pkgsave="__new">+ New package</button></div>`);t.remove();return}
