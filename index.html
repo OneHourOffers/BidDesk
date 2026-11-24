@@ -69,6 +69,12 @@ label{display:block;font-size:13px;color:var(--mute);font-weight:700;margin-bott
 .subb{background:#FACD88;color:#3b2a00;font-size:12px;font-weight:700;padding:3px 8px;border-radius:99px;white-space:nowrap;flex:none}
 .inadd{margin-top:8px}.inadd button{width:100%;min-height:46px;border-style:dashed;border-color:var(--sky);color:light-dark(var(--petrol),var(--sky));font-weight:700}
 .savest{font-size:13px;font-weight:600;color:var(--mute)}.savest.ok{color:var(--ok)}.savest.warn{color:var(--coral)}
+.subrow{margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}.subrow label{margin:0}.subrow select{flex:1 1 220px;min-height:40px;font-size:15px}
+.subcard{margin-top:8px;padding:10px 12px;border-radius:10px;background:light-dark(#fff6e6,#3a2c10);border:1px solid light-dark(#f3dcaa,#6b5320)}
+.subform{margin-top:8px;padding:10px;border:1px dashed var(--sky);border-radius:10px}.sg{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.sg input,.sg select{min-height:40px;font-size:15px}
+.subdir{padding:8px 0;border-top:1px solid var(--line);font-size:14px}.subb.ours{background:#37ADDB;color:#04293a}
+.go{background:var(--ok);border-color:var(--ok);color:#fff}
+.reccard{margin-top:8px;padding:10px 12px;border-radius:10px;border:2px solid #FACD88;background:light-dark(#fffaf0,#3a2c10)}
 .grp{font-size:12px;font-weight:700;color:var(--mute);margin-top:10px}
 .chip.on{background:var(--petrol);border-color:var(--petrol);color:#fff}
 .linkish{background:none;border:0;color:var(--sky);padding:0;min-height:32px;font-size:14px}
@@ -89,7 +95,8 @@ pre{white-space:pre-wrap;background:var(--bg);border-radius:8px;padding:10px;fon
  <section class="panel">
   <button class="pri big" id="newBtn">+ New property</button>
   <div id="list"><p class="empty">Loading…</p></div>
-  <details style="margin-top:18px"><summary class="note" style="cursor:pointer">Setup</summary>
+  <details id="subsBox" style="margin-top:18px"><summary class="note" style="cursor:pointer">Subs <span id="subsCount"></span></summary><div id="subsList" style="margin-top:8px"></div></details>
+  <details style="margin-top:12px"><summary class="note" style="cursor:pointer">Setup</summary>
    <div style="display:grid;gap:8px;margin-top:8px">
     <div><label for="s-gcName">GC name</label><input id="s-gcName" data-set="gcName"></div>
     <div><label for="s-gcPhone">GC cell</label><input id="s-gcPhone" data-set="gcPhone" type="tel"></div>
@@ -229,11 +236,35 @@ const rankOf=r=>{const t=String(r.type||"");let i=ORDER.indexOf(t);if(i<0){const
 const numOf=r=>parseInt((String(r.name||"").match(/(\d+)\s*$/)||[])[1])||0;
 function sortRooms(b){b.rooms=(b.rooms||[]).map((r,i)=>({r,i})).sort((x,y)=>rankOf(x.r)-rankOf(y.r)||(rankOf(x.r)<100?numOf(x.r)-numOf(y.r):0)||x.i-y.i).map(x=>x.r)}
 function phaseRoom(b,area){const i=phaseOf(area);if(i<0)return null;const name=PHASES[i];let r=b.rooms.find(x=>phaseOf(x.type)===i||phaseOf(x.name)===i);if(!r){r=room(b,name);b.rooms.push(r)}return r}
-function fix(b){if(!b.rooms)b.rooms=[];
+function fix(b){if(!b.rooms)b.rooms=[];for(const r of b.rooms){if(r.sub&&!r.gcRec){r.gcRec={company:r.sub==="yes"?"":r.sub,name:"",trade:"",phone:"",email:"",status:"pending",at:""}}delete r.sub}
  for(const r of b.rooms){if(r.labor==null){const s=(r.items||[]).reduce((t,i)=>t+(typeof i==="object"?num(i.labor)+num(i.price):0),0);r.labor=s?String(s):""}
   r.items=(r.items||[]).map(i=>typeof i==="string"?i:i.item).filter(Boolean);r.note=r.note||""}const ag=b.rooms.find(x=>x.name==="Added by GC");if(ag&&(ag.added||[]).length){ag.added=ag.added.filter(a=>{const m=String(a.item).match(/^([^:]+):\s*(.+)$/);const pr=m&&phaseRoom(b,m[1]);if(!pr)return true;pr.added=pr.added||[];if(!pr.added.some(x=>x.item===m[2]))pr.added.push({item:m[2],labor:a.labor});return false});if(!ag.added.length&&!ag.note&&!ag.items.length&&!num(ag.labor))b.rooms=b.rooms.filter(x=>x!==ag)}
  sortRooms(b);return b}
-const sent=b=>{const f=(b.rooms||[]).filter(r=>r.note.trim()||r.items.length);return f.length?f:(b.rooms||[])};
+/* subs: a saved directory you reuse; each section can be subbed out to one of them, and the house keeps a copy of who it was */
+const TRADES=["Plumber","Electrician","HVAC","Roofer","Drywall","Painter","Flooring","Carpenter","Concrete","Landscaping","Dumpster / hauling","Other"];
+const TRADE_FOR={"Plumbing":"Plumber","Electrical":"Electrician","Mechanicals":"HVAC","Roof & attic":"Roofer","Clean out":"Dumpster / hauling","Demo":"Dumpster / hauling","Exterior":"Roofer","Garage":"Carpenter","Basement":"Other"};
+const subLabel=s=>[s.company,s.name].filter(Boolean).join(" — ")||"Sub";
+const subLine=s=>[subLabel(s),s.trade,s.phone,s.email].filter(Boolean).join(" · ");
+const subJobs=id=>{const out=[];for(const b of bids)for(const r of b.rooms||[])if(r.ourSub&&r.ourSub.id===id)out.push({b,r});return out};
+const newSubOpen=new Set();
+function recHTML(r,i){const g=r.gcRec;if(!g||g.status!=="pending")return g&&g.status==="declined"?`<div class="note" style="margin-top:6px">You declined ${esc(settings.gcName||"the GC")}'s sub (${esc(g.company||g.name||"")}).</div>`:"";
+ return`<div class="reccard"><b>${esc(settings.gcName||"The GC")} recommends a sub:</b> ${esc(subLabel(g))}${g.trade?` <span class="note">· ${esc(g.trade)}</span>`:""}
+  <div class="note">${[g.phone?`<a href="tel:${esc(g.phone)}">${esc(g.phone)}</a>`:"",g.email?`<a href="mailto:${esc(g.email)}">${esc(g.email)}</a>`:""].filter(Boolean).join(" · ")||"No contact info given"}</div>
+  <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button class="go" data-recok="${i}">Approve &amp; assign</button><button class="no" data-recno="${i}">Decline</button></div></div>`}
+function subHTML(r,i){const s=r.ourSub;
+ if(s)return`<div class="subcard"><div><b>Subbed out to ${esc(subLabel(s))}</b>${s.trade?` <span class="note">· ${esc(s.trade)}</span>`:""}</div>
+  <div class="note">${[s.phone?`<a href="tel:${esc(s.phone)}">${esc(s.phone)}</a>`:"",s.email?`<a href="mailto:${esc(s.email)}">${esc(s.email)}</a>`:"",s.notes?esc(s.notes):""].filter(Boolean).join(" · ")||"No contact info saved"}</div>
+  <div class="note">${esc(settings.gcName||"The GC")} coordinates this sub. Assigned ${esc(s.at||"")}.</div><button class="linkish no" data-unsub="${i}">Remove sub from this section</button></div>`;
+ const list=(settings.subs||[]),want=TRADE_FOR[r.type];const sorted=[...list].sort((a,b)=>(b.trade===want)-(a.trade===want)||subLabel(a).localeCompare(subLabel(b)));
+ return`<div class="subrow"><label for="ss${i}">Sub this out to</label><select id="ss${i}" data-subsel="${i}"><option value="">No sub — ${esc(settings.gcName||"GC")}'s crew does it</option>${sorted.map(x=>`<option value="${esc(x.id)}">${esc(subLabel(x))}${x.trade?" ("+esc(x.trade)+")":""}</option>`).join("")}<option value="__new">+ Add a new sub…</option></select></div>
+ ${newSubOpen.has(r.id)?subForm("n"+i,want,`data-nsave="${i}"`):""}`}
+function subForm(k,trade,saveAttr,v={}){return`<div class="subform"><div class="sg"><div><label>Company</label><input id="${k}-company" value="${esc(v.company||"")}" placeholder="Mike's Plumbing LLC"></div><div><label>Contact name</label><input id="${k}-name" value="${esc(v.name||"")}"></div>
+ <div><label>Trade</label><select id="${k}-trade">${TRADES.map(t=>`<option ${t===(v.trade||trade)?"selected":""}>${t}</option>`).join("")}</select></div><div><label>Phone</label><input id="${k}-phone" type="tel" value="${esc(v.phone||"")}"></div>
+ <div><label>Email</label><input id="${k}-email" type="email" value="${esc(v.email||"")}"></div><div><label>Notes (license, rates…)</label><input id="${k}-notes" value="${esc(v.notes||"")}"></div></div>
+ <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button class="pri" ${saveAttr}>Save sub</button><button data-ncancel="${k}">Cancel</button></div></div>`}
+function readSubForm(k){const g=f=>{const el=document.getElementById(k+"-"+f);return el?el.value.trim():""};return{company:g("company"),name:g("name"),trade:g("trade"),phone:g("phone"),email:g("email"),notes:g("notes")}}
+function assignSub(b,r,sub){r.ourSub={id:sub.id,company:sub.company,name:sub.name,trade:sub.trade,phone:sub.phone,email:sub.email,notes:sub.notes,at:today()};save(b)}
+const sent=b=>{const f=(b.rooms||[]).filter(r=>r.note.trim()||r.items.length||r.ourSub);return f.length?f:(b.rooms||[])};
 /* materials */
 const MAT={"outlet covers":["Outlet covers","ea"],"outlet covers throughout":["Outlet covers","ea"],"switch plates":["Switch plates","ea"],"switch plates throughout":["Switch plates","ea"],"outlets":["Outlets (15A tamper-resistant)","ea"],"outlets throughout":["Outlets (15A tamper-resistant)","ea"],"replace outlets":["Outlets (15A tamper-resistant)","ea"],"switches":["Light switches","ea"],"switches throughout":["Light switches","ea"],"gfci outlet":["GFCI outlets","ea"],"gfci outlets":["GFCI outlets","ea"],"light fixture":["Light fixtures","ea"],"light fixtures":["Light fixtures","ea"],"ceiling fan":["Ceiling fan w/ light","ea"],"can lights":["LED can lights","ea"],"smoke detector":["Smoke detectors","ea"],"co detector":["CO detectors","ea"],"smoke & co throughout":["Smoke/CO combo detectors","ea"],
  "lvp":["LVP flooring","sq ft"],"flooring":["LVP flooring","sq ft"],"lvp floor":["LVP flooring","sq ft"],"flooring throughout":["LVP flooring","sq ft"],"carpet":["Carpet","sq ft"],"carpet pad":["Carpet pad","sq ft"],"tile":["Floor tile","sq ft"],"tile floor":["Floor tile","sq ft"],"baseboards":["Baseboard","lin ft"],"quarter round":["Quarter round","lin ft"],"transition strips":["Transition strips","ea"],
@@ -279,9 +310,25 @@ function restoreDrafts(list){let n=0;try{for(let i=0;i<localStorage.length;i++){
  if(n)setTimeout(()=>toast(`Restored ${n} unsaved draft${n===1?"":"s"} from this device`),300);return list}
 function saveSettings(){if(!db||readOnly)return;clearTimeout(saveSettings.t);saveSettings.t=setTimeout(()=>db.doc("settings/main").set({...settings}).catch(()=>{}),600)}
 
-function renderList(){const rows=[...bids].sort((a,b)=>(b.updated||"").localeCompare(a.updated||""));
+let subEdit=null,subAddOpen=false;
+function renderSubs(){const el=document.getElementById("subsList");if(!el)return;const list=[...(settings.subs||[])].sort((a,b)=>(a.trade||"").localeCompare(b.trade||"")||subLabel(a).localeCompare(subLabel(b)));
+ document.getElementById("subsCount").textContent=list.length?`(${list.length})`:"";
+ el.innerHTML=(list.length?list.map(s=>{const jobs=subJobs(s.id);return subEdit===s.id?subForm("e-"+s.id,s.trade,`data-esave="${esc(s.id)}"`,s):`<div class="subdir"><div><b>${esc(subLabel(s))}</b>${s.trade?` <span class="note">· ${esc(s.trade)}</span>`:""}</div>
+  <div class="note">${[s.phone?`<a href="tel:${esc(s.phone)}">${esc(s.phone)}</a>`:"",s.email?`<a href="mailto:${esc(s.email)}">${esc(s.email)}</a>`:""].filter(Boolean).join(" · ")}</div>${s.notes?`<div class="note">${esc(s.notes)}</div>`:""}
+  <div class="note"><b>Jobs:</b> ${jobs.length?jobs.map(j=>`<a href="#" data-gojob="${esc(j.b.id)}">${esc((j.b.address||"").split(/\s+/).slice(0,3).join(" "))} — ${esc(j.r.name)}</a>`).join(", "):"none yet"}</div>
+  <div style="display:flex;gap:12px"><button class="linkish" data-sedit="${esc(s.id)}">Edit</button><button class="linkish no" data-sdel="${esc(s.id)}">Remove</button></div></div>`}).join(""):'<p class="note">No subs saved yet. Pick "Sub this out to" in any section, or add one here.</p>')
+  +(subAddOpen?subForm("add","Plumber",'data-sadd2="1"'):'<button id="subAddBtn" class="ghost" style="width:100%;margin-top:8px">+ Add a sub</button>')}
+document.addEventListener("click",e=>{const t=e.target.closest("#subsList button, #subsList a, #subAddBtn");if(!t)return;const d=t.dataset;
+ if(t.id==="subAddBtn"){subAddOpen=true;renderSubs();return}
+ if(d.sadd2){const v=readSubForm("add");if(!v.company&&!v.name){toast("Add a company or contact name");return}settings.subs=(settings.subs||[]).concat({id:rid()+rid(),...v});subAddOpen=false;saveSettings();renderSubs();render();toast("Sub saved");return}
+ if(d.ncancel){subAddOpen=false;subEdit=null;renderSubs();return}
+ if(d.sedit){subEdit=d.sedit;renderSubs();return}
+ if(d.esave){const v=readSubForm("e-"+d.esave);const s=(settings.subs||[]).find(x=>x.id===d.esave);if(s){Object.assign(s,v);saveSettings();for(const hb of bids){let ch=false;for(const r of hb.rooms||[])if(r.ourSub&&r.ourSub.id===s.id){Object.assign(r.ourSub,v);ch=true}if(ch)save(hb)}}subEdit=null;renderSubs();render();toast("Sub updated");return}
+ if(d.sdel){if(!d.sure){d.sure=1;t.textContent="Tap again to remove";return}settings.subs=(settings.subs||[]).filter(x=>x.id!==d.sdel);saveSettings();renderSubs();render();toast("Removed from your sub list — houses keep their record");return}
+ if(d.gojob){e.preventDefault();sel=d.gojob;renderList();render();return}});
+function renderList(){renderSubs();const rows=[...bids].sort((a,b)=>(b.updated||"").localeCompare(a.updated||""));
  $("#list").innerHTML=rows.length?rows.map(b=>{const st=b.status==="in"?["in","Bid in · "+money(total(b))]:b.status==="sent"?["sent","Sent "+(b.sentAt||"")]:["","Not sent"];
-  return `<button class="job ${sel===b.id?"sel":""}" data-id="${esc(b.id)}"><b>${esc(b.address||"New property")}</b><span><span class="pill p-${st[0]}">${esc(st[1])}</span></span></button>`}).join(""):'<p class="empty">No properties yet.</p>'}
+  const pend=(b.rooms||[]).filter(r=>r.gcRec&&r.gcRec.status==="pending").length;return `<button class="job ${sel===b.id?"sel":""}" data-id="${esc(b.id)}"><b>${esc(b.address||"New property")}</b><span><span class="pill p-${st[0]}">${esc(st[1])}</span>${pend?` <span class="pill" style="background:#FACD88;color:#3b2a00">${pend} sub${pend===1?"":"s"} to approve</span>`:""}</span></button>`}).join(""):'<p class="empty">No properties yet.</p>'}
 
 function respHTML(b){const rs=b.responses||[];if(!rs.length)return`<p class="empty" style="padding:6px 0">No bids yet. When ${esc(settings.gcName||"the GC")} replies, his numbers show up here room by room.</p>`;
  return rs.map((r,k)=>{const latest=k===rs.length-1;const rows=(r.rooms||[]).filter(x=>num(x.labor)||(x.added||[]).length);
@@ -296,8 +343,8 @@ function render(){const b=bids.find(x=>x.id===sel),ed=$("#editor");if(!b){ed.inn
   <div><label for="f-dueDate">Need bid by</label><input id="f-dueDate" data-k="dueDate" type="date"></div>
   <div style="grid-column:1/-1"><label for="f-access">Access / notes for ${g}</label><input id="f-access" data-k="access" placeholder="Lockbox 1234, vacant"></div></div>
  ${(()=>{const lastOf=t=>{let k=-1;b.rooms.forEach((r,i)=>{if(r.type===t)k=i});return k};const lb=lastOf("Bedroom"),lt=lastOf("Bathroom");const inl=(t,lab)=>`<div class="inadd"><button class="ghost" data-add="${t}">+ Add ${lab}</button></div>`;return b.rooms.map((r,i)=>{const list=CHECK[r.type]||(r.type==="Other"?INTERIOR:[]),on=new Set(r.items);
-  return `<div class="room" data-rid="${esc(r.id)}"><div class="rh"><input data-r="${i}" data-rk="name" value="${esc(r.name)}" aria-label="Room name">${r.sub?`<span class="subb" title="GC is subbing this out">Subbed out${r.sub!=="yes"?": "+esc(r.sub):""}</span>`:""}<span class="lab">Labor</span><input class="price" data-r="${i}" data-rk="labor" value="${esc(r.labor)}" inputmode="decimal" placeholder="Labor $" title="Labor (GC bid)" aria-label="Labor for ${esc(r.name)}"><button class="x" data-rdel="${i}" aria-label="Remove ${esc(r.name)}">✕</button></div>
-  <div class="rb"><textarea data-r="${i}" data-rk="note" placeholder="What needs done in this room — leave blank to skip it" aria-label="Work for ${esc(r.name)}">${esc(r.note)}</textarea>
+  return `<div class="room" data-rid="${esc(r.id)}"><div class="rh"><input data-r="${i}" data-rk="name" value="${esc(r.name)}" aria-label="Room name">${r.gcRec&&r.gcRec.status==="pending"?`<span class="subb" title="GC recommended a sub — needs your approval">Sub to approve</span>`:""}${r.ourSub?`<span class="subb ours" title="Subbed out by us">Sub: ${esc(r.ourSub.company||r.ourSub.name||"")}</span>`:""}<span class="lab">Labor</span><input class="price" data-r="${i}" data-rk="labor" value="${esc(r.labor)}" inputmode="decimal" placeholder="Labor $" title="Labor (GC bid)" aria-label="Labor for ${esc(r.name)}"><button class="x" data-rdel="${i}" aria-label="Remove ${esc(r.name)}">✕</button></div>
+  <div class="rb"><textarea data-r="${i}" data-rk="note" placeholder="What needs done in this room — leave blank to skip it" aria-label="Work for ${esc(r.name)}">${esc(r.note)}</textarea>${recHTML(r,i)}${subHTML(r,i)}
   ${r.items.length?`<div class="chips">${r.items.map(t=>`<button class="chip on" data-r="${i}" data-chip="${esc(t)}">✓ ${esc(t)}</button>`).join("")}</div>`:""}
   ${(r.added||[]).length?`<div class="gcadd"><b>${esc(settings.gcName||"GC")} added:</b>${r.added.map((a,k)=>`<div>${esc(a.item)} — ${a.labor?money(num(a.labor)):"no price"} <button class="linkish no" data-adel="${i}:${k}">remove</button></div>`).join("")}</div>`:""}
   ${list.length?`<button class="linkish" data-check="${esc(r.id)}">${openCheck.has(r.id)?"Hide checklist":`+ Full checklist (${list.reduce((n,g)=>n+g[1].length,0)} items)`}</button>`:""}
@@ -326,7 +373,7 @@ function render(){const b=bids.find(x=>x.id===sel),ed=$("#editor");if(!b){ed.inn
 /* the text Josh gets */
 function message(b){const g=(settings.gcName||"").split(" ")[0]||"Hey",rooms=sent(b);
  const out=[`${g} — need a labor bid on ${b.address||"this property"}${b.dueDate?" by "+b.dueDate:""}.`];if(b.access)out.push(`Access: ${b.access}`);out.push("");
- rooms.forEach((r,i)=>{out.push(`${i+1}. ${r.name.toUpperCase()}`);if(r.note.trim())out.push(r.note.trim());if(r.items.length)out.push("Includes: "+r.items.join(", "));out.push("")});
+ rooms.forEach((r,i)=>{out.push(`${i+1}. ${r.name.toUpperCase()}`);if(r.note.trim())out.push(r.note.trim());if(r.ourSub)out.push("SUB (we chose — you coordinate): "+subLine(r.ourSub));if(r.items.length)out.push("Includes: "+r.items.join(", "));out.push("")});
  out.push("Reply with your labor price for each room:");rooms.slice(0,2).forEach((r,i)=>out.push(`${i+1} - $`));if(rooms.length>2)out.push("…");
  out.push("","Anything I missed, add it like:",`+ ${rooms[0]?rooms[0].name:"Kitchen"}: what needs done - $`,"","Thanks!"+(settings.myName?" — "+settings.myName:""));
  return out.join("\n")}
@@ -425,7 +472,7 @@ async function gcPdf(b){const P=window.PDFLib;if(!P){toast("PDF tools didn't loa
  T("HOW TO FILL THIS IN: tap each yellow box and type your labor price. Add anything we missed under Additional.",L+8,y-14,{size:8.5,bold:true});
  T("Then save the PDF and reply to the email with it attached — your numbers load into our system automatically.",L+8,y-26,{size:8.5});y-=48;
  head();
- rooms.forEach((r,k)=>{const desc=[r.note.trim(),r.items.length?"Includes: "+r.items.join(", ")+".":""].filter(Boolean).join("\n")||"Per walkthrough";
+ rooms.forEach((r,k)=>{const desc=[r.note.trim(),r.items.length?"Includes: "+r.items.join(", ")+".":"",r.ourSub?"SUB (owner selected, GC coordinates): "+subLine(r.ourSub):""].filter(Boolean).join("\n")||"Per walkthrough";
   const ls=wrap(desc,C[3]-C[2]-10),an=wrap(r.name,C[2]-C[1]-10,9.5,FB),h=Math.max(Math.max(ls.length,an.length)*11.5+10,30);need(h);
   pg.drawRectangle({x:L,y:y-h,width:R-L,height:h,borderColor:line,borderWidth:.6});[C[1],C[2],C[3]].forEach(x=>pg.drawLine({start:{x,y},end:{x,y:y-h},thickness:.6,color:line}));
   T(String(k+1),C[0]+8,y-14,{size:9.5});an.forEach((l,i)=>T(l,C[1]+5,y-14-i*11.5,{bold:true,size:9.5}));ls.forEach((l,i)=>T(l,C[2]+5,y-14-i*11.5,{size:9.5}));
@@ -453,7 +500,10 @@ async function readBidPdf(bytes){const P=window.PDFLib;const doc=await P.PDFDocu
   const [k,id]=n.split("|");if(k==="sub")out.subs[id]=v;else if(k==="labor")out.labor[id]=v;else if(k==="addArea"||k==="addDesc"||k==="addLabor"){const a=out.add[+id]=out.add[+id]||{};a[k]=v}else out.extra[k]=v}
  out.add=out.add.filter(a=>a&&(a.addDesc||a.addLabor));return out}
 function applyBidPdf(b,data,via){let n=0;
- for(const r of b.rooms)if(data.subs)delete r.sub;for(const [id,v] of Object.entries(data.subs||{})){const r=b.rooms.find(x=>x.id===id);if(r)r.sub=v==="yes"?"yes":v}
+ for(const [id,v0] of Object.entries(data.subs||{})){const r=b.rooms.find(x=>x.id===id);if(!r)continue;let v=v0;if(typeof v==="string"){try{v=JSON.parse(v)}catch{v={company:v==="yes"?"":v}}}
+  if(!v||typeof v!=="object")continue;const same=r.gcRec&&(r.gcRec.company||"").toLowerCase()===(v.company||"").toLowerCase()&&(r.gcRec.phone||"")===(v.phone||"");
+  if(r.ourSub&&(r.ourSub.company||"").toLowerCase()===(v.company||"").toLowerCase())continue;
+  if(!same)r.gcRec={company:v.company||"",name:v.name||"",trade:v.trade||"",phone:v.phone||"",email:v.email||"",status:"pending",at:today()}}
  for(const [id,v] of Object.entries(data.labor)){const r=b.rooms.find(x=>x.id===id);if(r&&num(v)){r.labor=String(num(v));n++}}
  for(const a of data.add){let r=a.addArea&&(b.rooms.find(x=>x.name.toLowerCase()===a.addArea.trim().toLowerCase())||phaseRoom(b,a.addArea));if(!r){r=b.rooms.find(x=>x.name==="Added by GC");if(!r){r=room(b,"Other");r.name="Added by GC";b.rooms.push(r)}}
   r.added=r.added||[];const item=(r.name==="Added by GC"&&a.addArea?a.addArea.trim()+": ":"")+(a.addDesc||"Additional work").trim();const ex=r.added.find(x=>x.item===item);if(ex)ex.labor=num(a.addLabor)?String(num(a.addLabor)):"";else r.added.push({item,labor:num(a.addLabor)?String(num(a.addLabor)):""});n++}
@@ -485,6 +535,7 @@ function buildSow(b){const rooms=(b.rooms||[]).filter(r=>r.note.trim()||r.items.
  b.sow={at:new Date().toLocaleString(),rooms:rooms.map(r=>{const lines=splitNote(r.note).map(d=>({d,c:""}));const norm=x=>x.toLowerCase().replace(/[^a-z]/g,""),low=norm(lines.map(l=>l.d).join(" "));
   for(const it of r.items)if(!low.includes(norm(it.split(/[ /]/)[0]))&&!low.includes(norm(it)))lines.push({d:it,c:""});
   for(const a of r.added||[])lines.push({d:cap(a.item)+" (contractor addition)",c:a.labor||""});
+  if(r.ourSub)lines.push({d:"Subcontractor: "+subLine(r.ourSub),c:""});
   if(!lines.length)lines.push({d:"Per walkthrough",c:""});
   return{id:r.id,name:r.name,price:String(roomSum(r)||""),lines}})}}
 function sowHTML(b){if(!b.sow)return`<p class="note">Turns each room's notes and checklist into numbered line items (1.1, 1.2…) with ${esc(settings.gcName||"the GC")}'s price as each room's subtotal. You can edit any line, add lines, and split costs per line before downloading.</p><button class="pri" id="buildSow">Build line-by-line Scope of Work</button>`;
@@ -505,7 +556,7 @@ function syncLabor(b,src){ed.querySelectorAll('[data-rk="labor"]').forEach(el=>{
  const T=money(total(b));[["#tot",T],["#respTot",T],["#respHead",T],["#atot",money(total(b)+matsAll(b))]].forEach(([q,v])=>{const el=$(q);if(el)el.textContent=v})}
 async function gcLink(b){const u=(settings.pageUrl||"").trim()||"https://onehouroffers.github.io/BidDeskGC/";if(!/^https:\/\//.test(u))return"";
  if(!b.bidKey){b.bidKey=Array.from(crypto.getRandomValues(new Uint8Array(12)),x=>x.toString(16).padStart(2,"0")).join("");save(b)}
- const p={id:b.id,a:b.address||"",du:b.dueDate||"",ac:b.access||"",gc:settings.gcName||"",who:["1HO Holdings LLC",settings.myName].filter(Boolean).join(" — "),r:sent(b).map(r=>[r.name,r.note.trim(),r.items,r.id])};
+ const p={id:b.id,a:b.address||"",du:b.dueDate||"",ac:b.access||"",gc:settings.gcName||"",who:["1HO Holdings LLC",settings.myName].filter(Boolean).join(" — "),r:sent(b).map(r=>[r.name,r.note.trim(),r.items,r.id,r.ourSub?{c:r.ourSub.company||"",n:r.ourSub.name||"",t:r.ourSub.trade||"",p:r.ourSub.phone||"",e:r.ourSub.email||""}:null])};
  if(settings.myEmail)p.to=settings.myEmail;if(settings.myPhone)p.sms=settings.myPhone;if(window.BD&&window.BD.api){p.api=window.BD.api;p.k=b.bidKey}
  const bytes=new TextEncoder().encode(JSON.stringify(p));let out=bytes,t="j";
  if(window.CompressionStream){try{out=new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new CompressionStream("deflate-raw"))).arrayBuffer());t="z"}catch{out=bytes;t="j"}}
@@ -515,7 +566,7 @@ function bidEmail(b,link,g){const rooms=sent(b),to=settings.myEmail||"",subj=`Re
  const tpl=[`LABOR BID ${b.id} — ${b.address}`,"Type your price after each $ and hit Send:",""].concat(rooms.map((r,i)=>`${i+1}. ${r.name} - $`),["","Anything I missed (fill in or delete):","+ Area: what needs done - $","+ Area: what needs done - $","","Timeline (working days): ","Notes: "]).join("\n");
  const mailto=to?"mailto:"+encodeURIComponent(to)+"?subject="+encodeURIComponent(subj)+"&body="+encodeURIComponent(tpl):"";
  const H=t=>esc(t).replace(/\n/g,"<br>");
- const rows=rooms.map((r,i)=>`<tr><td style="padding:10px 8px;border-bottom:1px solid #d8e2e8;vertical-align:top;font-weight:700;color:#567080;width:24px">${i+1}</td><td style="padding:10px 8px;border-bottom:1px solid #d8e2e8;vertical-align:top"><div style="font-weight:700;color:#034B68;font-size:16px">${esc(r.name)}</div>${r.note.trim()?`<div style="margin-top:4px">${H(r.note.trim())}</div>`:""}${r.items.length?`<div style="margin-top:4px;color:#567080;font-size:13px">Includes: ${esc(r.items.join(", "))}</div>`:""}</td><td style="padding:10px 8px;border-bottom:1px solid #d8e2e8;vertical-align:top;white-space:nowrap;color:#567080">Labor: $______</td></tr>`).join("");
+ const rows=rooms.map((r,i)=>`<tr><td style="padding:10px 8px;border-bottom:1px solid #d8e2e8;vertical-align:top;font-weight:700;color:#567080;width:24px">${i+1}</td><td style="padding:10px 8px;border-bottom:1px solid #d8e2e8;vertical-align:top"><div style="font-weight:700;color:#034B68;font-size:16px">${esc(r.name)}</div>${r.note.trim()?`<div style="margin-top:4px">${H(r.note.trim())}</div>`:""}${r.items.length?`<div style="margin-top:4px;color:#567080;font-size:13px">Includes: ${esc(r.items.join(", "))}</div>`:""}${r.ourSub?`<div style="margin-top:6px;padding:6px 8px;background:#fff6e6;border-radius:6px;font-size:13px"><b>Sub we chose — you coordinate:</b> ${esc(subLine(r.ourSub))}</div>`:""}</td><td style="padding:10px 8px;border-bottom:1px solid #d8e2e8;vertical-align:top;white-space:nowrap;color:#567080">Labor: $______</td></tr>`).join("");
  const btn=mailto?`${link?`<p style="margin:18px 0 6px"><a href="${esc(link)}" style="display:inline-block;background:#0f7a4b;color:#ffffff;font-weight:700;font-size:17px;text-decoration:none;padding:14px 22px;border-radius:10px">Enter your labor prices</a></p><p style="color:#567080;font-size:13px;margin:0 0 14px">Opens a form with each area below — type your labor per room, add anything we missed, tap Finish &amp; send. Your bid comes straight to us.</p><p style="font-size:13px;margin:0 0 14px"><a href="${esc(mailto)}" style="color:#034B68">Or reply by email instead</a></p>`:`<p style="margin:18px 0"><a href="${esc(mailto)}" style="display:inline-block;background:#0f7a4b;color:#ffffff;font-weight:700;font-size:17px;text-decoration:none;padding:14px 22px;border-radius:10px">Tap here to reply with your prices</a></p><p style="color:#567080;font-size:13px;margin:0 0 14px">It opens a reply with every area listed — just type your price after each $ and hit Send.</p>`}`:"";
  const html=`<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.45;color:#0b2330;max-width:640px">
  <p>${esc(g)},</p><p>Here's the Scope of Work for <b>${esc(b.address)}</b>${b.dueDate?` — need your labor bid by <b>${esc(b.dueDate)}</b>`:""}.${b.access?` Access: ${esc(b.access)}.`:""}</p>${btn}
@@ -524,7 +575,7 @@ function bidEmail(b,link,g){const rooms=sent(b),to=settings.myEmail||"",subj=`Re
  ${!mailto?`<p>Reply with your price for each numbered area, like <b>1 - $1,200</b>.</p>`:""}
  
  <p style="color:#567080;font-size:13px">The same scope is attached as a PDF for your records.</p><p>Thanks,<br>${esc(settings.myName||"")}<br>1HO Holdings LLC</p></div>`;
- const text=`${g},\n\nHere's the Scope of Work for ${b.address}${b.dueDate?" — need your labor bid by "+b.dueDate:""}.\n\n`+rooms.map((r,i)=>`${i+1}. ${r.name.toUpperCase()}\n${r.note.trim()}${r.items.length?"\nIncludes: "+r.items.join(", "):""}\nLabor: $______`).join("\n\n")+`\n\nJust reply with your price for each numbered area, like:\n1 - $1,200\n2 - $6,500\n\nMissed anything? Add it like:\n+ Kitchen: replace window - $300\n\nThanks,\n${settings.myName||""}\n1HO Holdings LLC`;
+ const text=`${g},\n\nHere's the Scope of Work for ${b.address}${b.dueDate?" — need your labor bid by "+b.dueDate:""}.\n\n`+rooms.map((r,i)=>`${i+1}. ${r.name.toUpperCase()}\n${r.note.trim()}${r.items.length?"\nIncludes: "+r.items.join(", "):""}${r.ourSub?"\nSub we chose (you coordinate): "+subLine(r.ourSub):""}\nLabor: $______`).join("\n\n")+`\n\nJust reply with your price for each numbered area, like:\n1 - $1,200\n2 - $6,500\n\nMissed anything? Add it like:\n+ Kitchen: replace window - $300\n\nThanks,\n${settings.myName||""}\n1HO Holdings LLC`;
  return{html,text}}
 function markSent(b){if(b.status!=="in"){b.status="sent";b.sentAt=today();save(b);renderList()}}
 
@@ -544,6 +595,19 @@ ed.addEventListener("input",e=>{const b=cur();if(!b)return;const t=e.target,d=t.
  else if(d.rk){b.rooms[+d.r][d.rk]=t.value;save(b);if(d.rk==="labor")syncLabor(b,t)}});
 ed.addEventListener("change",async e=>{if(e.target.id!=="pdfIn")return;const b=cur();const f=e.target.files&&e.target.files[0];if(!b||!f)return;
  try{const data=await readBidPdf(new Uint8Array(await f.arrayBuffer()));const n=applyBidPdf(b,data,"filled PDF (uploaded)");if(n){save(b);renderList();render();toast(`Logged ${n} price${n===1?"":"s"} from the PDF`)}else toast("No prices found in that PDF — is it the filled-in one?")}catch(z){toast("Couldn't read that PDF")}});
+ed.addEventListener("change",e=>{const t=e.target;if(t.dataset.subsel===undefined)return;const b=cur();if(!b)return;const r=b.rooms[+t.dataset.subsel];
+ if(t.value==="__new"){newSubOpen.add(r.id);render();const f=document.getElementById(`n${t.dataset.subsel}-company`);if(f)f.focus();return}
+ const sub=(settings.subs||[]).find(x=>x.id===t.value);if(sub){assignSub(b,r,sub);render();renderSubs();toast(`${r.name} subbed out to ${subLabel(sub)}`)}});
+ed.addEventListener("click",e=>{const t=e.target.closest("button");if(!t)return;const b=cur();if(!b)return;const d=t.dataset;
+ if(d.nsave!==undefined){const i=+d.nsave,r=b.rooms[i],v=readSubForm("n"+i);if(!v.company&&!v.name){toast("Add a company or contact name");return}
+  const sub={id:rid()+rid(),...v};settings.subs=(settings.subs||[]).concat(sub);saveSettings();newSubOpen.delete(r.id);assignSub(b,r,sub);render();renderSubs();toast(`Saved ${subLabel(sub)} and assigned to ${r.name}`);return}
+ if(d.ncancel){const i=+d.ncancel.slice(1);const r=b.rooms[i];if(r)newSubOpen.delete(r.id);render();return}
+ if(d.recok!==undefined){const r=b.rooms[+d.recok],g=r.gcRec;if(!g)return;const key=x=>(x.company||x.name||"").toLowerCase().trim();
+  let sub=(settings.subs||[]).find(x=>key(x)===key(g)&&key(g));if(!sub){sub={id:rid()+rid(),company:g.company,name:g.name,trade:g.trade||TRADE_FOR[r.type]||"",phone:g.phone,email:g.email,notes:`Recommended by ${settings.gcName||"GC"} ${today()}`};settings.subs=(settings.subs||[]).concat(sub);saveSettings()}
+  else{for(const f of ["phone","email","trade","name"])if(!sub[f]&&g[f])sub[f]=g[f];saveSettings()}
+  g.status="approved";g.decidedAt=today();assignSub(b,r,sub);render();renderList();toast(`Approved ${subLabel(sub)} for ${r.name} — saved to your subs`);return}
+ if(d.recno!==undefined){const r=b.rooms[+d.recno];if(!d.sure){d.sure=1;t.textContent="Tap again to decline";return}r.gcRec.status="declined";r.gcRec.decidedAt=today();save(b);render();renderList();toast("Declined — "+(settings.gcName||"the GC")+" will see it");return}
+ if(d.unsub!==undefined){const r=b.rooms[+d.unsub];if(!d.sure){d.sure=1;t.textContent="Tap again to remove";return}delete r.ourSub;save(b);render();renderSubs();return}});
 ed.addEventListener("click",async e=>{const b=cur();if(!b)return;const t=e.target.closest("button,a");if(!t)return;const d=t.dataset;
  if(d.chip!==undefined){const r=b.rooms[+d.r],i=r.items.indexOf(d.chip);i>=0?r.items.splice(i,1):r.items.push(d.chip);save(b);render();return}
  if(d.adel){const [ri,k]=d.adel.split(":");b.rooms[+ri].added.splice(+k,1);save(b);render();return}
@@ -611,7 +675,7 @@ let mcp=null,dl=null;
 (async()=>{try{db=await window.claude?.use("db")}catch{}
  if(!db){$("#list").innerHTML='<p class="empty">Sign in to load your properties.</p>';return}
  const timer=setTimeout(()=>{if(!bids.length)$("#list").innerHTML='<p class="empty">Can\'t reach saved bids yet — still trying.</p>'},10000);
- db.doc("settings/main").onSnapshot(s=>{if(s.exists)settings={...settings,...s.data()};if(settings.gcEmail&&!(settings.gcEmails||[]).length)settings.gcEmails=[settings.gcEmail];document.querySelectorAll("[data-set]").forEach(el=>{if(document.activeElement!==el)el.value=settings[el.dataset.set]||""});const a=document.activeElement;if(!(a&&ed.contains(a)))render()},()=>{});
+ db.doc("settings/main").onSnapshot(s=>{if(s.exists)settings={...settings,...s.data()};if(settings.gcEmail&&!(settings.gcEmails||[]).length)settings.gcEmails=[settings.gcEmail];document.querySelectorAll("[data-set]").forEach(el=>{if(document.activeElement!==el)el.value=settings[el.dataset.set]||""});renderSubs();const a=document.activeElement;if(!(a&&ed.contains(a)))render()},()=>{});
  db.collection("bids").onSnapshot(s=>{if(!s.metadata.fromCache)clearTimeout(timer);const local=new Map(bids.map(b=>[b.id,b]));
   bids=s.docs.map(d=>{const b=JSON.parse(JSON.stringify(d.data()));if(q[b.id]&&local.has(b.id)){const l=local.get(b.id),have=new Set((l.inbox||[]).map(x=>x.sid));for(const it of b.inbox||[])if(!have.has(it.sid))(l.inbox=l.inbox||[]).push(it);return l}const was=(b.rooms||[]).map(r=>r.id).join();fix(b);if(was&&was!==b.rooms.map(r=>r.id).join())setTimeout(()=>save(b),0);return b});
   if(!window.__draftsChecked){window.__draftsChecked=1;bids=restoreDrafts(bids).map(b=>fix(b))}
