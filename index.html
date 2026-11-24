@@ -81,7 +81,7 @@ label{display:block;font-size:13px;color:var(--mute);font-weight:700;margin-bott
 @media(max-width:600px){.tkrow{grid-template-columns:minmax(0,1fr) 56px 40px 64px 66px;font-size:13px}}
 #pkgSel{width:100%;min-height:44px;font-weight:700}#pkgSel.pick{border:2px solid var(--sky);background:#eaf4f9}
 .warnbox{margin:8px 0;padding:8px 10px;border-radius:10px;background:#fff6e6;border:1px solid #f3dcaa;color:#3a2c10;font-size:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}.warnbox b{flex:1 1 200px}.fin.undec{border-color:#e0b25a;background:#fffaf0}
-.okbox{background:#dff5ea;border-color:#9fd9bb;color:#0f5a38}.quick{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0;font-size:14px;color:var(--mute)}.quick button{min-height:34px;padding:4px 12px}
+.warnbox .pri,.warnbox .ghost{margin-left:auto}.okbox{background:#dff5ea;border-color:#9fd9bb;color:#0f5a38}.quick{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0;font-size:14px;color:var(--mute)}.quick button{min-height:34px;padding:4px 12px}
 .negname{text-align:left;font:inherit;font-weight:600;color:var(--petrol);padding:0;min-height:0;background:none;border:0;cursor:pointer}.negdet{margin:2px 0 8px;padding:10px 12px;background:#f8fbfc;border:1px solid var(--line);border-radius:10px;font-size:14px;display:grid;gap:4px}.negdet[hidden]{display:none}.negnote{white-space:pre-wrap}
 .negrow{grid-template-columns:minmax(0,1fr) 90px 110px}.negrow span:nth-child(2){text-align:right;color:var(--mute)}.negtot{border-top:2px solid var(--line);font-weight:800;padding-top:6px}.negtot span:nth-child(2){font-weight:700}
 .pkgrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.pkgrow select{flex:1 1 200px;min-height:42px}
@@ -444,8 +444,8 @@ function negWork(b,k){const p=k.split("|"),r=(b.rooms||[]).find(x=>x.id===p[1]);
  if(fin.length)out.push(`<div><b>Finishes:</b> ${fin.map(f=>esc(f.cat+": "+[f.status==="reuse"?"reuse existing":f.status==="new"?"new":"",f.product,f.color].filter(Boolean).join(" — "))).join("; ")}</div>`);
  return out.join("")||`<div class="note">No notes on this section.</div>`}
 function negHTML(b){const L=negLines(b);if(!L.length)return"";const g=esc(settings.gcName||"the GC"),c=b.counter,[his,ours]=negSum(b);
- const st=c?({sent:`Counter sent ${esc(c.sentAt)} — ${money(c.ours)} vs his ${money(c.his)}. Waiting on ${g}.`,accepted:`✓ ${g} accepted your counter — ${money(c.ours)} (${esc(c.doneAt||"")}). His numbers above are updated.`,countered:`${g} came back at ${money(c.reply||0)} (${esc(c.doneAt||"")})${c.gcNote?` — “${esc(c.gcNote)}”`:""}. His new numbers are loaded above. Counter again below if you want.`})[c.status]||"":"";
- return`<div class="neg"><h4 class="sec" style="margin-top:18px">Counter-offer to ${g}</h4>${st?`<div class="warnbox${c.status==="accepted"?" okbox":""}">${st}</div>`:""}
+ const st=c?({sent:`Counter sent ${esc(c.sentAt)} — ${money(c.ours)} vs his ${money(c.his)}. Waiting on ${g}.`,accepted:`✓ ${g} accepted your counter — ${money(c.ours)} (${esc(c.doneAt||"")}). The final scope of work was emailed to you.`,agreed:`✓ Agreed at ${money(c.reply||0)} — you accepted ${g}'s numbers (${esc(c.doneAt||"")}). The final scope of work was emailed to you.`,countered:`${g} came back at ${money(c.reply||0)} (${esc(c.doneAt||"")})${c.gcNote?` — “${esc(c.gcNote)}”`:""}. His new numbers are loaded above. Counter again below if you want.`})[c.status]||"":"";
+ return`<div class="neg"><h4 class="sec" style="margin-top:18px">Counter-offer to ${g}</h4>${st?`<div class="warnbox${c.status==="accepted"||c.status==="agreed"?" okbox":""}">${st}${c.status==="countered"?`<button class="pri" id="negAgree">Accept his ${money(c.reply||0)} — close it out</button>`:""}${c.status==="accepted"||c.status==="agreed"?`<button class="ghost" id="negFinal">Email me the final scope again</button>`:""}</div>`:""}
  <p class="note">Type what you want to pay next to any line — blank keeps his number. ${g} only sees his bid and your offer, never the contingency.</p>
  <div class="quick">Quick fill: <button class="ghost" data-negpct="5">−5%</button><button class="ghost" data-negpct="10">−10%</button><button class="ghost" data-negpct="15">−15%</button><button class="ghost" data-negpct="0">Clear</button></div>
  <div class="tkrow tkhead negrow"><span>Line</span><span>His bid</span><span>Your offer</span></div>
@@ -453,7 +453,7 @@ function negHTML(b){const L=negLines(b);if(!L.length)return"";const g=esc(settin
  <div class="tkrow negrow negtot"><span>Total</span><span>${money(his)}</span><span id="negT">${money(ours)}</span></div><p class="note" id="negSave">${his>ours?`Saves ${money(his-ours)} (${Math.round((his-ours)/his*100)}%)`:""}</p>
  <label for="negNote">Message to ${g} (optional)</label><textarea id="negNote" placeholder="e.g. Paint and flooring came in high — can you meet us here?">${esc(b.cnote||"")}</textarea>
  <button class="pri" id="negSend" style="margin-top:8px">Send counter to ${g}</button><p class="note" id="negStatus"></p>
- ${(b.negLog||[]).length?`<details style="margin-top:8px"><summary class="note" style="cursor:pointer">Negotiation history</summary>${b.negLog.map(x=>`<div class="note">${esc(x.at)} · ${x.who==="us"?"We offered":x.status==="accepted"?g+" accepted":g+" countered"} ${money(x.total)}${x.note?` — “${esc(x.note)}”`:""}</div>`).join("")}</details>`:""}</div>`}
+ ${(b.negLog||[]).length?`<details style="margin-top:8px"><summary class="note" style="cursor:pointer">Negotiation history</summary>${b.negLog.map(x=>`<div class="note">${esc(x.at)} · ${x.status==="agreed"?"We accepted "+g+"'s numbers at":x.who==="us"?"We offered":x.status==="accepted"?g+" accepted":g+" countered"} ${money(x.total)}${x.note?` — “${esc(x.note)}”`:""}</div>`).join("")}</details>`:""}</div>`}
 function negEmail(b,c,g){const url=((settings.pageUrl||"").trim()||"https://onehouroffers.github.io/BidDeskGC/").split("#")[0];
  const td="padding:8px;border-bottom:1px solid #d8e2e8;";
  const rows=c.lines.map(l=>`<tr><td style="${td}">${esc(l[1])}</td><td style="${td}text-align:right;color:#567080">${money(l[2])}</td><td style="${td}text-align:right;font-weight:700;color:#034B68">${money(l[3])}</td></tr>`).join("");
@@ -761,12 +761,17 @@ function negUpd(b){const[h,o]=negSum(b),T=$("#negT"),S=$("#negSave");if(T)T.text
 ed.addEventListener("input",e=>{const t=e.target,d=t.dataset,b=cur();if(!b)return;if(d.neg!==undefined){(b.cdraft=b.cdraft||{})[d.neg]=t.value;save(b);negUpd(b)}else if(t.id==="negNote"){b.cnote=t.value;save(b)}});
 ed.addEventListener("click",async e=>{const t=e.target.closest("button");if(!t)return;const b=cur();if(!b)return;const d=t.dataset;
  if(d.negpct!==undefined){const p=num(d.negpct);b.cdraft={};if(p)for(const [k,,h] of negLines(b))b.cdraft[k]=String(Math.round(h*(1-p/100)/25)*25);save(b);render();$("#bids .neg")?.scrollIntoView({block:"nearest"});return}
+ if(t.id==="negAgree"||t.id==="negFinal"){const c=b.counter;if(!c)return;if(t.id==="negAgree"&&!d.sure){d.sure=1;t.textContent=`Tap again — agree at ${money(c.reply||0)}`;return}
+  t.disabled=true;t.textContent="Sending…";const prices={};for(const [k,,h] of negLines(b))prices[k]=h;
+  try{await window.BDcall("finalScope",{id:b.id,prices,how:t.id==="negAgree"?"you accepted "+(settings.gcName||"the GC")+"'s counter":c.status==="accepted"?(settings.gcName||"GC")+" accepted your counter":"agreed"});
+   if(t.id==="negAgree"){c.status="agreed";c.doneAt=new Date().toLocaleString();(b.negLog=b.negLog||[]).push({at:c.doneAt,who:"us",status:"agreed",total:c.reply||0,note:"Accepted his numbers"});save(b);render()}else{t.textContent="Sent ✓"}toast("Final scope of work emailed to you")}
+  catch(x){t.disabled=false;delete d.sure;t.textContent="Try again";toast("Couldn't send — "+((x&&x.message)||"check connection"))}return}
  if(d.negx!==undefined){const el=$("#negd"+d.negx);if(el){el.hidden=!el.hidden;t.setAttribute("aria-expanded",String(!el.hidden));t.lastElementChild.textContent=el.hidden?"▾":"▴"}return}
  if(t.id!=="negSend"||t.disabled)return;const st=$("#negStatus"),g=settings.gcName||"the GC";
  if(!settings.gcEmail){st.textContent=`Save ${g}'s email in the Send step first.`;return}
  const lines=negLines(b).map(([k,n,h])=>[k,n,h,offerOf(b,k,h)]),[his,ours]=negSum(b);if(ours>=his&&!d.same){d.same=1;t.textContent="Your offer matches his bid — send anyway?";return}
  if(!d.sure){d.sure=1;t.textContent=`Send ${money(ours)} counter to ${settings.gcEmail}?`;return}
- t.disabled=true;t.textContent="Sending…";const c={status:"sent",sentAt:new Date().toLocaleString(),note:(b.cnote||"").trim(),lines,his,ours};const m=negEmail(b,c,(g||"").split(" ")[0]);
+ t.disabled=true;t.textContent="Sending…";const c={status:"sent",sentAt:new Date().toLocaleString(),note:(b.cnote||"").trim(),lines,his,ours,orig:(b.counter&&b.counter.orig)||his};const m=negEmail(b,c,(g||"").split(" ")[0]);
  try{await mcp.callTool("Gmail","send_message",{to:[settings.gcEmail],subject:`Counter-offer — ${b.address} [${b.id}]`,body:m.text,htmlBody:m.html});
   b.counter=c;(b.negLog=b.negLog||[]).push({at:c.sentAt,who:"us",total:ours,note:c.note});b.cnote="";save(b);render();toast("Counter sent to "+g)}
  catch(x){t.disabled=false;delete d.sure;t.textContent="Try again";st.textContent="Couldn't send — "+((x&&x.message)||"check your connection")}});
