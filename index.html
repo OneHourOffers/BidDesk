@@ -75,6 +75,9 @@ label{display:block;font-size:13px;color:var(--mute);font-weight:700;margin-bott
 .subdir{padding:8px 0;border-top:1px solid var(--line);font-size:14px}.subb.ours{background:#37ADDB;color:#04293a}
 .go{background:var(--ok);border-color:var(--ok);color:#fff}
 .reccard{margin-top:8px;padding:10px 12px;border-radius:10px;border:2px solid #FACD88;background:light-dark(#fffaf0,#3a2c10)}
+.totals .cont{background:#FACD88;color:#3b2a00}.totals .cont span{color:#5a4510}.totals .cont input{width:52px;min-height:28px;padding:2px 6px;font-size:14px;display:inline-block;text-align:right}.totals .cont em{font-style:normal;font-size:11px}
+.pkgrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.pkgrow select{flex:1 1 200px;min-height:42px}
+.fins{display:grid;gap:8px;margin-top:10px}.fin{display:flex;gap:6px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:8px}.fg{flex:1;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px}.fg input,.fg select{min-height:38px;font-size:14px}.fg label{font-size:12px}
 .grp{font-size:12px;font-weight:700;color:var(--mute);margin-top:10px}
 .chip.on{background:var(--petrol);border-color:var(--petrol);color:#fff}
 .linkish{background:none;border:0;color:var(--sky);padding:0;min-height:32px;font-size:14px}
@@ -236,6 +239,30 @@ const rankOf=r=>{const t=String(r.type||"");let i=ORDER.indexOf(t);if(i<0){const
 const numOf=r=>parseInt((String(r.name||"").match(/(\d+)\s*$/)||[])[1])||0;
 function sortRooms(b){b.rooms=(b.rooms||[]).map((r,i)=>({r,i})).sort((x,y)=>rankOf(x.r)-rankOf(y.r)||(rankOf(x.r)<100?numOf(x.r)-numOf(y.r):0)||x.i-y.i).map(x=>x.r)}
 function phaseRoom(b,area){const i=phaseOf(area);if(i<0)return null;const name=PHASES[i];let r=b.rooms.find(x=>phaseOf(x.type)===i||phaseOf(x.name)===i);if(!r){r=room(b,name);b.rooms.push(r)}return r}
+/* finishes: what goes in the house (product, color/type, link). Packages make every house match. */
+const FIN_CATS=["Flooring — LVP","Flooring — carpet","Flooring — tile","Wall paint","Trim paint","Ceiling paint","Door paint","Cabinet paint","Cabinets","Countertops","Backsplash","Cabinet hardware","Interior doors","Door hardware","Light fixtures","Ceiling fans","Kitchen sink & faucet","Bath faucet","Vanity","Toilet","Tub / shower surround","Shower head & trim","Mirror","Bath accessories","Outlet covers & switch plates","Smoke / CO detectors","Appliances","Blinds","Exterior paint","Front door","Other"];
+const F=(cat,product="",color="",where="",notes="")=>({id:rid(),cat,product,color,link:"",where,notes});
+const DEFAULT_PKGS={flip:{name:"Flip Package",finishes:[F("Wall paint","BEHR Ultra — satin","French Silver (PPU18-05) gray","Whole house"),F("Trim paint","Semi-gloss","Black","Whole house"),F("Door paint","Semi-gloss","White","Interior doors"),F("Ceiling paint","Flat","White","Whole house"),F("Flooring — LVP","TrafficMaster Hickman Coast 6 mil click-lock (VTRHDHICCOA6X36)","Gray","Main living areas, kitchen, baths"),F("Flooring — carpet","","Gray","Bedrooms, stairs"),F("Cabinet paint","","Black","Kitchen"),F("Countertops","Laminate","Gray with black trim","Kitchen"),F("Cabinet hardware","Handles, not knobs","Stainless / silver","Kitchen, baths"),F("Door hardware","Levers","Stainless / silver","Whole house"),F("Light fixtures","","Black","Whole house"),F("Ceiling fans","With light kit","Black","Bedrooms, living room"),F("Outlet covers & switch plates","New throughout","White","Whole house")],notes:{}},
+ rental:{name:"Rental Package",finishes:["Wall paint","Trim paint","Door paint","Flooring — LVP","Flooring — carpet","Countertops","Cabinet hardware","Door hardware","Light fixtures","Ceiling fans","Outlet covers & switch plates","Blinds"].map(c=>F(c)),notes:{}}};
+const pkgs=()=>{const p=JSON.parse(JSON.stringify(DEFAULT_PKGS));const sp=settings.packages||{};for(const k in sp)p[k]=sp[k];return p};
+const finC=b=>(b.finishes||[]).filter(f=>f.product||f.color||f.link).map(f=>[f.cat,f.product||"",f.color||"",/^https:\/\//.test(f.link||"")?f.link:"",f.where||"",f.notes||""]);
+function applyPkg(b,key,{notes=true}={}){const p=pkgs()[key];if(!p)return;b.package=key;b.finishes=JSON.parse(JSON.stringify(p.finishes||[])).map(f=>({...f,id:rid()}));
+ if(notes&&p.notes)for(const r of b.rooms){const n=p.notes[r.type];if(n&&!r.note.trim())r.note=n}}
+/* edits to a house's finishes flow back into its package, so the package fine-tunes job by job */
+function syncPkg(b){const k=b.package,P=pkgs();if(!k||!P[k])return;settings.packages=settings.packages||{};
+ settings.packages[k]={name:P[k].name,finishes:JSON.parse(JSON.stringify(b.finishes||[])),notes:P[k].notes||{}};saveSettings();
+ clearTimeout(syncPkg.t);syncPkg.t=setTimeout(()=>toast(`${P[k].name} updated`),900)}
+function finHTML(b){const fs=b.finishes||[],P=pkgs();
+ return`<div class="step" id="finishes"><h3>Finishes</h3><p class="note">What goes in this house — product, color/type and a link. ${esc(settings.gcName||"The GC")} sees these with the scope.${b.package&&P[b.package]?` <b>Changes here update the ${esc(P[b.package].name)} for future houses.</b>`:""}</p>
+ <div class="pkgrow"><label for="pkgSel">Package</label><select id="pkgSel"><option value="">Custom (no package)</option>${Object.entries(P).map(([k,v])=>`<option value="${esc(k)}" ${b.package===k?"selected":""}>${esc(v.name)}</option>`).join("")}</select>
+  <button id="pkgApply">Apply package</button><button id="pkgSave" class="ghost">Save these finishes as…</button></div>
+ ${fs.length?`<div class="fins">${fs.map((f,k)=>`<div class="fin"><div class="fg"><div><label>Item</label><select data-fi="${k}" data-ff="cat">${FIN_CATS.concat(FIN_CATS.includes(f.cat)?[]:[f.cat]).map(c=>`<option ${c===f.cat?"selected":""}>${esc(c)}</option>`).join("")}</select></div>
+  <div><label>Product / brand</label><input data-fi="${k}" data-ff="product" value="${esc(f.product)}" placeholder="e.g. TrafficMaster Hickman Coast"></div>
+  <div><label>Color / type</label><input data-fi="${k}" data-ff="color" value="${esc(f.color)}" placeholder="e.g. French Silver, satin"></div>
+  <div><label>Link ${/^https:\/\//.test(f.link||"")?`<a href="${esc(f.link)}" target="_blank" rel="noopener">open ↗</a>`:""}</label><input data-fi="${k}" data-ff="link" type="url" value="${esc(f.link)}" placeholder="https://www.homedepot.com/…"></div>
+  <div><label>Where</label><input data-fi="${k}" data-ff="where" value="${esc(f.where)}" placeholder="Whole house, kitchen…"></div>
+  <div><label>Notes / qty</label><input data-fi="${k}" data-ff="notes" value="${esc(f.notes)}"></div></div><button class="x2" data-fdel="${k}" aria-label="Remove finish">✕</button></div>`).join("")}</div>`:`<p class="note">No finishes yet — pick a package above or add them one by one.</p>`}
+ <button class="ghost" id="finAdd" style="margin-top:8px">+ Add finish</button></div>`}
 function fix(b){if(!b.rooms)b.rooms=[];for(const r of b.rooms){if(r.sub&&!r.gcRec){r.gcRec={company:r.sub==="yes"?"":r.sub,name:"",trade:"",phone:"",email:"",status:"pending",at:""}}delete r.sub}
  for(const r of b.rooms){if(r.labor==null){const s=(r.items||[]).reduce((t,i)=>t+(typeof i==="object"?num(i.labor)+num(i.price):0),0);r.labor=s?String(s):""}
   r.items=(r.items||[]).map(i=>typeof i==="string"?i:i.item).filter(Boolean);r.note=r.note||""}const ag=b.rooms.find(x=>x.name==="Added by GC");if(ag&&(ag.added||[]).length){ag.added=ag.added.filter(a=>{const m=String(a.item).match(/^([^:]+):\s*(.+)$/);const pr=m&&phaseRoom(b,m[1]);if(!pr)return true;pr.added=pr.added||[];if(!pr.added.some(x=>x.item===m[2]))pr.added.push({item:m[2],labor:a.labor});return false});if(!ag.added.length&&!ag.note&&!ag.items.length&&!num(ag.labor))b.rooms=b.rooms.filter(x=>x!==ag)}
@@ -276,6 +303,9 @@ const MAT={"outlet covers":["Outlet covers","ea"],"outlet covers throughout":["O
  "drylok":["Drylok","gal"],"interior waterproofing":["Drylok","gal"],"paint floor":["Floor paint","gal"],"sump pump":["Sump pump","ea"],"water heater":["Water heater","ea"],"furnace":["Furnace","ea"],"thermostat":["Thermostat","ea"],"supply registers":["Supply registers","ea"],"register / vent covers":["Vent covers","ea"],
  "garage door":["Garage door","ea"],"garage door opener":["Garage door opener","ea"],"front door":["Front entry door","ea"],"storm doors":["Storm door","ea"],"deadbolts":["Deadbolts","ea"],"rekey all locks":["Lock rekey kit","ea"],"gutters":["Gutters","lin ft"],"downspouts":["Downspouts","ea"],"shingles":["Shingles","bundle"],"windows":["Vinyl windows","ea"],"replace window":["Vinyl window","ea"],"insulation":["Insulation","bag"],"attic insulation":["Blown insulation","bag"]};
 const matSum=m=>num(m.q)*num(m.c);
+const contPct=b=>b.contPct!=null&&b.contPct!==""?num(b.contPct):(settings.contPct!=null&&settings.contPct!==""?num(settings.contPct):15);
+const subTot=b=>total(b)+matsAll(b),contAmt=b=>subTot(b)*contPct(b)/100,allIn=b=>subTot(b)+contAmt(b);
+function updTotals(b){[["#tot",money(total(b))],["#respTot",money(total(b))],["#respHead",money(total(b))],["#mtot",money(matsAll(b))],["#ctot",money(contAmt(b))],["#atot",money(allIn(b))]].forEach(([q,v])=>{const el=$(q);if(el)el.textContent=v})}
 const money2=n=>"$"+(+n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
 const matTotal=r=>(r.mats||[]).reduce((s,m)=>s+matSum(m),0);
 const matsAll=b=>(b.rooms||[]).reduce((s,r)=>s+matTotal(r),0);
@@ -350,7 +380,8 @@ function render(){const b=bids.find(x=>x.id===sel),ed=$("#editor");if(!b){ed.inn
   ${list.length?`<button class="linkish" data-check="${esc(r.id)}">${openCheck.has(r.id)?"Hide checklist":`+ Full checklist (${list.reduce((n,g)=>n+g[1].length,0)} items)`}</button>`:""}
   ${openCheck.has(r.id)?list.map(([gn,its])=>{const left=its.filter(t=>!on.has(t));return left.length?`<div class="grp">${esc(gn)}</div><div class="chips" style="margin-top:4px">${left.map(t=>`<button class="chip" data-r="${i}" data-chip="${esc(t)}">${esc(t)}</button>`).join("")}</div>`:""}).join(""):""}${matHTML(r,i)}</div></div>${i===lb?inl("Bedroom","bedroom"):""}${i===lt?inl("Bathroom","bathroom"):""}`}).join("")})()}
  <div class="adds"><button class="pri" data-add="Bedroom">+ Add bedroom</button><button class="pri" data-add="Bathroom">+ Add bathroom</button><span class="note" style="align-self:center;margin-left:6px">Other sections:</span>${ADD.filter(t=>t!=="Bedroom"&&t!=="Bathroom").map(t=>`<button class="ghost" data-add="${esc(t)}">${esc(t)}</button>`).join("")}</div>
- <div class="totals"><div><span>Labor</span><b id="tot">${money(total(b))}</b></div><div><span>Materials</span><b id="mtot">${money(matsAll(b))}</b></div><div class="all"><span>All-in</span><b id="atot">${money(total(b)+matsAll(b))}</b></div></div>
+ ${finHTML(b)}
+ <div class="totals"><div><span>Labor</span><b id="tot">${money(total(b))}</b></div><div><span>Materials</span><b id="mtot">${money(matsAll(b))}</b></div><div class="cont"><span>Contingency <input id="contPct" data-k="contPct" inputmode="decimal" value="${esc(String(contPct(b)))}" aria-label="Contingency percent">% <em>(only you see this)</em></span><b id="ctot">${money(contAmt(b))}</b></div><div class="all"><span>All-in with contingency</span><b id="atot">${money(allIn(b))}</b></div></div>
  <div style="margin-top:8px"><button id="shopCsv">Download materials shopping list</button></div>
  <div class="step"><h3>Send to ${g}</h3>
   <p class="note">Emails ${g} the full scope from your Gmail with a <b>Tap here to reply with your prices</b> button — it opens a reply with every area listed so he just types each price and hits Send. Then hit <b>Check email for ${g}'s reply</b> and his numbers load in.</p>
@@ -408,7 +439,7 @@ function sow(b,li){if(!window.jspdf){toast("PDF tools didn't load — reload the
     theme:"grid",showHead:"everyPage",styles:{font:"helvetica",fontSize:9.5,cellPadding:5,textColor:ink,lineColor:[200,212,220]},
     headStyles:{fillColor:pet,textColor:255,fontStyle:"bold"},footStyles:{fillColor:pet,textColor:255,fontStyle:"bold",fontSize:11},
     columnStyles:{1:{cellWidth:44,halign:"right"},2:{cellWidth:50},3:{cellWidth:70,halign:"right"},4:{cellWidth:80,halign:"right"}},margin:{left:L,right:L,bottom:60}})}
-  d.autoTable({startY:d.lastAutoTable.finalY+18,body:[["Labor",money(gt)],["Materials",money(matsAll(b))],[{content:"PROJECT TOTAL",styles:{fontStyle:"bold"}},{content:money(gt+matsAll(b)),styles:{fontStyle:"bold"}}]],
+  d.autoTable({startY:d.lastAutoTable.finalY+18,body:[["Labor",money(gt)],["Materials",money(matsAll(b))],["Subtotal",money(gt+matsAll(b))],[`Contingency (${contPct(b)}%)`,money((gt+matsAll(b))*contPct(b)/100)],[{content:"PROJECT TOTAL",styles:{fontStyle:"bold"}},{content:money((gt+matsAll(b))*(1+contPct(b)/100)),styles:{fontStyle:"bold"}}]],
    theme:"plain",styles:{fontSize:11,textColor:ink,cellPadding:4},columnStyles:{0:{halign:"right"},1:{cellWidth:110,halign:"right"}},margin:{left:W/2,right:L}})}
  else{
  const body=[];let n=0;
@@ -477,6 +508,10 @@ async function gcPdf(b){const P=window.PDFLib;if(!P){toast("PDF tools didn't loa
   pg.drawRectangle({x:L,y:y-h,width:R-L,height:h,borderColor:line,borderWidth:.6});[C[1],C[2],C[3]].forEach(x=>pg.drawLine({start:{x,y},end:{x,y:y-h},thickness:.6,color:line}));
   T(String(k+1),C[0]+8,y-14,{size:9.5});an.forEach((l,i)=>T(l,C[1]+5,y-14-i*11.5,{bold:true,size:9.5}));ls.forEach((l,i)=>T(l,C[2]+5,y-14-i*11.5,{size:9.5}));
   fld("labor|"+r.id,C[3]+4,y-24,C[4]-C[3]-8,18,{value:num(r.labor)?String(num(r.labor)):""});y-=h});
+ const FC=finC(b);if(FC.length){need(30);pg.drawRectangle({x:L,y:y-22,width:R-L,height:22,color:pale});T("FINISHES"+(b.package&&pkgs()[b.package]?" — "+pkgs()[b.package].name:""),L+6,y-15,{bold:true,size:9});y-=22;
+  for(const f of FC){const txt=[[f[1],f[2]].filter(Boolean).join(" — "),f[4]?"Where: "+f[4]:"",f[5],f[3]].filter(Boolean).join("\n");const ls=wrap(txt,C[4]-C[2]-10,9),h=Math.max(ls.length*11+8,22);need(h);
+   pg.drawRectangle({x:L,y:y-h,width:R-L,height:h,borderColor:line,borderWidth:.6});pg.drawLine({start:{x:C[2],y},end:{x:C[2],y:y-h},thickness:.6,color:line});
+   wrap(f[0],C[2]-L-10,9,FB).forEach((l,j)=>T(l,L+5,y-13-j*11,{bold:true,size:9}));ls.forEach((l,j)=>T(l,C[2]+5,y-13-j*11,{size:9}));y-=h}}
  need(30);pg.drawRectangle({x:L,y:y-22,width:R-L,height:22,color:pale});T("ADDITIONAL — anything we missed (area, what needs done, labor $)",L+6,y-15,{bold:true,size:9});y-=22;
  for(let i=0;i<ADD_ROWS;i++){need(24);pg.drawRectangle({x:L,y:y-24,width:R-L,height:24,borderColor:line,borderWidth:.6});
   fld("addArea|"+i,C[0]+4,y-21,C[2]-C[0]-8,18,{size:9});fld("addDesc|"+i,C[2]+4,y-21,C[3]-C[2]-8,18,{size:9});fld("addLabor|"+i,C[3]+4,y-21,C[4]-C[3]-8,18);y-=24}
@@ -550,13 +585,14 @@ function sowHTML(b){if(!b.sow)return`<p class="note">Turns each room's notes and
   <div class="total" style="margin-top:12px"><span>Labor total</span><span id="sowTot">${money(gt)}</span></div>
   <h4 class="sec">Materials</h4><p class="note">Live from each room's "Materials to buy" list.</p>${mats}
   <div class="total" style="margin-top:12px;background:#37ADDB;color:#04293a"><span>Materials total</span><span>${money(matsAll(b))}</span></div>
-  <div class="total" style="margin-top:8px"><span>Project total</span><span id="sowAll">${money(gt+matsAll(b))}</span></div>
+  <div class="total" style="margin-top:8px;background:#FACD88;color:#3b2a00"><span>Contingency (${esc(String(contPct(b)))}%)</span><span id="sowCont">${money((gt+matsAll(b))*contPct(b)/100)}</span></div>
+  <div class="total" style="margin-top:8px"><span>Project total with contingency</span><span id="sowAll">${money((gt+matsAll(b))*(1+contPct(b)/100))}</span></div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="pri big" id="sowPdf" style="flex:1 1 240px">Download line-item Scope of Work PDF</button><button id="rebuildSow" style="flex:1 1 160px">Rebuild from rooms</button></div>`}
 function syncLabor(b,src){ed.querySelectorAll('[data-rk="labor"]').forEach(el=>{if(el!==src)el.value=b.rooms[+el.dataset.r].labor??""});
- const T=money(total(b));[["#tot",T],["#respTot",T],["#respHead",T],["#atot",money(total(b)+matsAll(b))]].forEach(([q,v])=>{const el=$(q);if(el)el.textContent=v})}
+ updTotals(b)}
 async function gcLink(b){const u=(settings.pageUrl||"").trim()||"https://onehouroffers.github.io/BidDeskGC/";if(!/^https:\/\//.test(u))return"";
  if(!b.bidKey){b.bidKey=Array.from(crypto.getRandomValues(new Uint8Array(12)),x=>x.toString(16).padStart(2,"0")).join("");save(b)}
- const p={id:b.id,a:b.address||"",du:b.dueDate||"",ac:b.access||"",gc:settings.gcName||"",who:["1HO Holdings LLC",settings.myName].filter(Boolean).join(" — "),r:sent(b).map(r=>[r.name,r.note.trim(),r.items,r.id,r.ourSub?{c:r.ourSub.company||"",n:r.ourSub.name||"",t:r.ourSub.trade||"",p:r.ourSub.phone||"",e:r.ourSub.email||""}:null])};
+ const p={id:b.id,a:b.address||"",du:b.dueDate||"",ac:b.access||"",gc:settings.gcName||"",who:["1HO Holdings LLC",settings.myName].filter(Boolean).join(" — "),f:finC(b),r:sent(b).map(r=>[r.name,r.note.trim(),r.items,r.id,r.ourSub?{c:r.ourSub.company||"",n:r.ourSub.name||"",t:r.ourSub.trade||"",p:r.ourSub.phone||"",e:r.ourSub.email||""}:null])};
  if(settings.myEmail)p.to=settings.myEmail;if(settings.myPhone)p.sms=settings.myPhone;if(window.BD&&window.BD.api){p.api=window.BD.api;p.k=b.bidKey}
  const bytes=new TextEncoder().encode(JSON.stringify(p));let out=bytes,t="j";
  if(window.CompressionStream){try{out=new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new CompressionStream("deflate-raw"))).arrayBuffer());t="z"}catch{out=bytes;t="j"}}
@@ -571,34 +607,46 @@ function bidEmail(b,link,g){const rooms=sent(b),to=settings.myEmail||"",subj=`Re
  const html=`<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.45;color:#0b2330;max-width:640px">
  <p>${esc(g)},</p><p>Here's the Scope of Work for <b>${esc(b.address)}</b>${b.dueDate?` — need your labor bid by <b>${esc(b.dueDate)}</b>`:""}.${b.access?` Access: ${esc(b.access)}.`:""}</p>${btn}
  <table style="border-collapse:collapse;width:100%;border-top:3px solid #034B68">${rows}</table>
+ ${finC(b).length?`<h3 style="color:#034B68;margin:20px 0 6px;font-size:16px">Finishes${b.package&&pkgs()[b.package]?" — "+esc(pkgs()[b.package].name):""}</h3><table style="border-collapse:collapse;width:100%;border-top:3px solid #034B68">${finC(b).map(f=>`<tr><td style="padding:8px;border-bottom:1px solid #d8e2e8;font-weight:700;color:#034B68;vertical-align:top">${esc(f[0])}</td><td style="padding:8px;border-bottom:1px solid #d8e2e8;vertical-align:top">${esc([f[1],f[2]].filter(Boolean).join(" — "))}${f[4]?`<div style="color:#567080;font-size:13px">${esc(f[4])}</div>`:""}${f[5]?`<div style="color:#567080;font-size:13px">${esc(f[5])}</div>`:""}${f[3]?`<div><a href="${esc(f[3])}" style="color:#034B68">View product</a></div>`:""}</td></tr>`).join("")}</table>`:""}
  <p style="margin-top:16px">Missed anything? Add it in your reply like <b>+ Kitchen: replace window - $300</b>.</p>
  ${!mailto?`<p>Reply with your price for each numbered area, like <b>1 - $1,200</b>.</p>`:""}
  
  <p style="color:#567080;font-size:13px">The same scope is attached as a PDF for your records.</p><p>Thanks,<br>${esc(settings.myName||"")}<br>1HO Holdings LLC</p></div>`;
- const text=`${g},\n\nHere's the Scope of Work for ${b.address}${b.dueDate?" — need your labor bid by "+b.dueDate:""}.\n\n`+rooms.map((r,i)=>`${i+1}. ${r.name.toUpperCase()}\n${r.note.trim()}${r.items.length?"\nIncludes: "+r.items.join(", "):""}${r.ourSub?"\nSub we chose (you coordinate): "+subLine(r.ourSub):""}\nLabor: $______`).join("\n\n")+`\n\nJust reply with your price for each numbered area, like:\n1 - $1,200\n2 - $6,500\n\nMissed anything? Add it like:\n+ Kitchen: replace window - $300\n\nThanks,\n${settings.myName||""}\n1HO Holdings LLC`;
+ const text=`${g},\n\nHere's the Scope of Work for ${b.address}${b.dueDate?" — need your labor bid by "+b.dueDate:""}.\n\n`+rooms.map((r,i)=>`${i+1}. ${r.name.toUpperCase()}\n${r.note.trim()}${r.items.length?"\nIncludes: "+r.items.join(", "):""}${r.ourSub?"\nSub we chose (you coordinate): "+subLine(r.ourSub):""}\nLabor: $______`).join("\n\n")+(finC(b).length?"\n\nFINISHES\n"+finC(b).map(f=>`- ${f[0]}: ${[f[1],f[2]].filter(Boolean).join(" — ")}${f[4]?" ("+f[4]+")":""}${f[3]?" "+f[3]:""}`).join("\n"):"")+`\n\nJust reply with your price for each numbered area, like:\n1 - $1,200\n2 - $6,500\n\nMissed anything? Add it like:\n+ Kitchen: replace window - $300\n\nThanks,\n${settings.myName||""}\n1HO Holdings LLC`;
  return{html,text}}
 function markSent(b){if(b.status!=="in"){b.status="sent";b.sentAt=today();save(b);renderList()}}
 
 /* events */
 $("#newBtn").addEventListener("click",()=>{const b={id:"BR-"+today().slice(2).replace(/-/g,"")+"-"+rid().slice(0,3).toUpperCase(),status:"draft",rooms:[],created:today()};
- for(const t of START)b.rooms.push(room(b,t));bids.push(b);sel=b.id;save(b);renderList();render();$("#f-address").focus()});
+ for(const t of START)b.rooms.push(room(b,t));if(settings.defaultPkg)applyPkg(b,settings.defaultPkg);bids.push(b);sel=b.id;save(b);renderList();render();$("#f-address").focus()});
 $("#list").addEventListener("click",e=>{const j=e.target.closest("[data-id]");if(j){sel=j.dataset.id;renderList();render();if(innerWidth<860)$("#editor").scrollIntoView({behavior:"smooth"})}});
 const ed=$("#editor"),cur=()=>bids.find(x=>x.id===sel);
 ed.addEventListener("input",e=>{const b=cur();if(!b)return;const t=e.target,d=t.dataset;
  if(d.ai){const [ri,ai]=d.ai.split(":");b.rooms[+ri].added[+ai].labor=t.value;save(b);syncLabor(b,t);return}
  if(d.mk){const r=b.rooms[+d.m],m=r.mats[+d.mi];m[d.mk]=t.value;save(b);const l=$(`#ml${d.m}-${d.mi}`);if(l)l.textContent=matSum(m)?money(matSum(m)):"";const mt=$("#mt"+d.m);if(mt)mt.textContent=matTotal(r)?money(matTotal(r)):"";
-  $("#mtot").textContent=money(matsAll(b));$("#atot").textContent=money(total(b)+matsAll(b));return}
+  $("#mtot").textContent=money(matsAll(b));updTotals(b);void money(allIn(b));return}
  if(d.lk||d.sk){const r=b.sow.rooms[+d.s];if(d.sk)r.price=t.value;else r.lines[+d.l][d.lk]=t.value;save(b);
   const alloc=r.lines.reduce((x,l)=>x+num(l.c),0),p=num(r.price),el=$("#sa"+d.s);if(el)el.textContent=alloc?(Math.round(alloc)===Math.round(p)?"Lines match subtotal ✓":`Lines add to ${money(alloc)} — subtotal ${money(p)}`):"";
-  const lt=b.sow.rooms.reduce((x,r)=>x+num(r.price),0),st=$("#sowTot");if(st)st.textContent=money(lt);const sa=$("#sowAll");if(sa)sa.textContent=money(lt+matsAll(b));return}
- if(d.k){b[d.k]=t.value;save(b);if(d.k==="address"){renderList();ed.querySelector("h2").textContent=t.value||"New property"}}
+  const lt=b.sow.rooms.reduce((x,r)=>x+num(r.price),0),st=$("#sowTot");if(st)st.textContent=money(lt);const sa=$("#sowAll");if(sa)sa.textContent=money((lt+matsAll(b))*(1+contPct(b)/100));const sc=$("#sowCont");if(sc)sc.textContent=money((lt+matsAll(b))*contPct(b)/100);return}
+ if(d.k){b[d.k]=t.value;save(b);if(d.k==="contPct")updTotals(b);if(d.k==="address"){renderList();ed.querySelector("h2").textContent=t.value||"New property"}}
  else if(d.rk){b.rooms[+d.r][d.rk]=t.value;save(b);if(d.rk==="labor")syncLabor(b,t)}});
 ed.addEventListener("change",async e=>{if(e.target.id!=="pdfIn")return;const b=cur();const f=e.target.files&&e.target.files[0];if(!b||!f)return;
  try{const data=await readBidPdf(new Uint8Array(await f.arrayBuffer()));const n=applyBidPdf(b,data,"filled PDF (uploaded)");if(n){save(b);renderList();render();toast(`Logged ${n} price${n===1?"":"s"} from the PDF`)}else toast("No prices found in that PDF — is it the filled-in one?")}catch(z){toast("Couldn't read that PDF")}});
 ed.addEventListener("change",e=>{const t=e.target;if(t.dataset.subsel===undefined)return;const b=cur();if(!b)return;const r=b.rooms[+t.dataset.subsel];
  if(t.value==="__new"){newSubOpen.add(r.id);render();const f=document.getElementById(`n${t.dataset.subsel}-company`);if(f)f.focus();return}
  const sub=(settings.subs||[]).find(x=>x.id===t.value);if(sub){assignSub(b,r,sub);render();renderSubs();toast(`${r.name} subbed out to ${subLabel(sub)}`)}});
+ed.addEventListener("input",e=>{const t=e.target,d=t.dataset;if(d.ff===undefined)return;const b=cur();if(!b)return;const f=b.finishes[+d.fi];f[d.ff]=t.value;save(b);syncPkg(b)});
+ed.addEventListener("change",e=>{const t=e.target,d=t.dataset;const b=cur();if(!b)return;if(d.ff==="cat"){b.finishes[+d.fi].cat=t.value;save(b);syncPkg(b)}if(d.ff==="link")render()});
 ed.addEventListener("click",e=>{const t=e.target.closest("button");if(!t)return;const b=cur();if(!b)return;const d=t.dataset;
+ if(t.id==="finAdd"){(b.finishes=b.finishes||[]).push(F("Other"));save(b);syncPkg(b);render();const s=ed.querySelectorAll('[data-ff="product"]');s[s.length-1]?.focus();return}
+ if(d.fdel!==undefined){b.finishes.splice(+d.fdel,1);save(b);syncPkg(b);render();return}
+ if(t.id==="pkgApply"){const k=$("#pkgSel").value;if(!k){toast("Pick a package first");return}if((b.finishes||[]).some(f=>f.product||f.color)&&!d.sure){d.sure=1;t.textContent="Replace this house's finishes?";return}
+  applyPkg(b,k);save(b);render();toast(`${pkgs()[k].name} applied`);return}
+ if(t.id==="pkgSave"){const P=pkgs();const opts=Object.entries(P).map(([k,v])=>`<button class="ghost" data-pkgsave="${esc(k)}">${esc(v.name)}</button>`).join("");
+  t.insertAdjacentHTML("afterend",`<div class="pkgsave note" style="width:100%">Save this house's finishes${" and section notes"} as: ${opts}<button class="ghost" data-pkgsave="__new">+ New package</button></div>`);t.remove();return}
+ if(d.pkgsave){let k=d.pkgsave,P=pkgs();if(k==="__new"){let nm="Package "+(Object.keys(P).length+1);try{nm=(prompt("Name this package (e.g. Premium Flip)",nm)||"").trim()||nm}catch{}k="p"+rid();P[k]={name:nm}}
+  const notes={};for(const r of b.rooms)if(r.note.trim()&&!notes[r.type])notes[r.type]=r.note.trim();
+  settings.packages=settings.packages||{};settings.packages[k]={name:P[k].name,finishes:JSON.parse(JSON.stringify(b.finishes||[])),notes};b.package=k;saveSettings();save(b);render();toast(`Saved as ${P[k].name} — new houses can use it`);return}
  if(d.nsave!==undefined){const i=+d.nsave,r=b.rooms[i],v=readSubForm("n"+i);if(!v.company&&!v.name){toast("Add a company or contact name");return}
   const sub={id:rid()+rid(),...v};settings.subs=(settings.subs||[]).concat(sub);saveSettings();newSubOpen.delete(r.id);assignSub(b,r,sub);render();renderSubs();toast(`Saved ${subLabel(sub)} and assigned to ${r.name}`);return}
  if(d.ncancel){const i=+d.ncancel.slice(1);const r=b.rooms[i];if(r)newSubOpen.delete(r.id);render();return}
